@@ -1,0 +1,163 @@
+{
+    "S001": {
+        "student_id": "S001",
+        "name": "Alex Johnson",
+        "created_at": "2026-05-20 22:26:08",
+        "topics": {
+            "Limits": {
+                "total_attempts": 6,
+                "correct_answers": 4,
+                "wrong_answers": 2,
+                "hints_used": 6,
+                "total_time_taken": 350,
+                "mastery_score": 54.67,
+                "status": "Medium",
+                "error_types": {
+                    "Sign error": 2
+                },
+                "last_revised": "2026-05-20 23:21:44"
+            },
+            "Derivatives": {
+                "total_attempts": 8,
+                "correct_answers": 2,
+                "wrong_answers": 6,
+                "hints_used": 12,
+                "total_time_taken": 680,
+                "mastery_score": 1.0,
+                "status": "Weak",
+                "error_types": {
+                    "Formula mistake": 6
+                },
+                "last_revised": "2026-05-20 23:21:44"
+            }
+        },
+        "attempt_history": [
+            {
+                "question_id": "Q1",
+                "topic": "Limits",
+                "is_correct": true,
+                "error_type": null,
+                "hints_used": 0,
+                "time_taken_seconds": 40,
+                "attempted_at": "2026-05-20 22:26:08"
+            },
+            {
+                "question_id": "Q2",
+                "topic": "Limits",
+                "is_correct": true,
+                "error_type": null,
+                "hints_used": 1,
+                "time_taken_seconds": 55,
+                "attempted_at": "2026-05-20 22:26:08"
+            },
+            {
+                "question_id": "Q3",
+                "topic": "Limits",
+                "is_correct": false,
+                "error_type": "Sign error",
+                "hints_used": 2,
+                "time_taken_seconds": 80,
+                "attempted_at": "2026-05-20 22:26:08"
+            },
+            {
+                "question_id": "Q4",
+                "topic": "Derivatives",
+                "is_correct": false,
+                "error_type": "Formula mistake",
+                "hints_used": 2,
+                "time_taken_seconds": 90,
+                "attempted_at": "2026-05-20 22:26:08"
+            },
+            {
+                "question_id": "Q5",
+                "topic": "Derivatives",
+                "is_correct": false,
+                "error_type": "Formula mistake",
+                "hints_used": 1,
+                "time_taken_seconds": 85,
+                "attempted_at": "2026-05-20 22:26:08"
+            },
+            {
+                "question_id": "Q6",
+                "topic": "Derivatives",
+                "is_correct": false,
+                "error_type": "Formula mistake",
+                "hints_used": 2,
+                "time_taken_seconds": 95,
+                "attempted_at": "2026-05-20 22:26:08"
+            },
+            {
+                "question_id": "Q7",
+                "topic": "Derivatives",
+                "is_correct": true,
+                "error_type": null,
+                "hints_used": 1,
+                "time_taken_seconds": 70,
+                "attempted_at": "2026-05-20 22:26:08"
+            },
+            {
+                "question_id": "Q1",
+                "topic": "Limits",
+                "is_correct": true,
+                "error_type": null,
+                "hints_used": 0,
+                "time_taken_seconds": 40,
+                "attempted_at": "2026-05-20 23:21:44"
+            },
+            {
+                "question_id": "Q2",
+                "topic": "Limits",
+                "is_correct": true,
+                "error_type": null,
+                "hints_used": 1,
+                "time_taken_seconds": 55,
+                "attempted_at": "2026-05-20 23:21:44"
+            },
+            {
+                "question_id": "Q3",
+                "topic": "Limits",
+                "is_correct": false,
+                "error_type": "Sign error",
+                "hints_used": 2,
+                "time_taken_seconds": 80,
+                "attempted_at": "2026-05-20 23:21:44"
+            },
+            {
+                "question_id": "Q4",
+                "topic": "Derivatives",
+                "is_correct": false,
+                "error_type": "Formula mistake",
+                "hints_used": 2,
+                "time_taken_seconds": 90,
+                "attempted_at": "2026-05-20 23:21:44"
+            },
+            {
+                "question_id": "Q5",
+                "topic": "Derivatives",
+                "is_correct": false,
+                "error_type": "Formula mistake",
+                "hints_used": 1,
+                "time_taken_seconds": 85,
+                "attempted_at": "2026-05-20 23:21:44"
+            },
+            {
+                "question_id": "Q6",
+                "topic": "Derivatives",
+                "is_correct": false,
+                "error_type": "Formula mistake",
+                "hints_used": 2,
+                "time_taken_seconds": 95,
+                "attempted_at": "2026-05-20 23:21:44"
+            },
+            {
+                "question_id": "Q7",
+                "topic": "Derivatives",
+                "is_correct": true,
+                "error_type": null,
+                "hints_used": 1,
+                "time_taken_seconds": 70,
+                "attempted_at": "2026-05-20 23:21:44"
+            }
+        ]
+    }
+}
