@@ -20,31 +20,31 @@ const ERROR_TYPES = {
     ]
 };
 
-// Colors mapping matching CSS HSL variables
+// Colors mapping matching CSS Alabaster Theme variables
 const COLORS = {
     strong: {
-        background: '#042f2e',
-        border: '#10b981',
-        highlight: { background: '#0f766e', border: '#10b981' },
-        glow: 'rgba(16, 185, 129, 0.4)'
+        background: '#F0F4EF',
+        border: '#8F9E8B',
+        highlight: { background: '#E2EAE1', border: '#8F9E8B' },
+        glow: 'rgba(143, 158, 139, 0.35)'
     },
     medium: {
-        background: '#451a03',
-        border: '#f59e0b',
-        highlight: { background: '#78350f', border: '#f59e0b' },
-        glow: 'rgba(245, 158, 11, 0.4)'
+        background: '#FAF5EE',
+        border: '#C5B49B',
+        highlight: { background: '#F3EAD9', border: '#C5B49B' },
+        glow: 'rgba(197, 180, 155, 0.35)'
     },
     weak: {
-        background: '#450a0a',
-        border: '#ef4444',
-        highlight: { background: '#7f1d1d', border: '#ef4444' },
-        glow: 'rgba(239, 68, 68, 0.5)'
+        background: '#FAF0EE',
+        border: '#C58F84',
+        highlight: { background: '#F3DDD9', border: '#C58F84' },
+        glow: 'rgba(197, 143, 132, 0.45)'
     },
     unstarted: {
-        background: '#1f2937',
-        border: '#4b5563',
-        highlight: { background: '#374151', border: '#6b7280' },
-        glow: 'rgba(75, 85, 99, 0.15)'
+        background: '#F5F3ED',
+        border: '#BEB7A4',
+        highlight: { background: '#E9E5DA', border: '#BEB7A4' },
+        glow: 'rgba(190, 183, 164, 0.15)'
     }
 };
 
@@ -176,10 +176,10 @@ function renderGraph() {
             label: node.display_name,
             shape: 'box',
             font: {
-                color: '#ffffff',
+                color: '#3B3833',
                 face: 'Inter',
-                size: 14,
-                bold: { color: '#ffffff', size: 14 }
+                size: 13,
+                bold: { color: '#3B3833', size: 13, vadjust: 0 }
             },
             color: {
                 background: style.background,
@@ -195,10 +195,9 @@ function renderGraph() {
                 y: 0
             },
             borderWidth: 2,
-            margin: { top: 12, bottom: 12, left: 16, right: 16 },
-            shapeProperties: {
-                borderRadius: 8
-            },
+            borderWidthSelected: 2.5,
+            margin: { top: 11, bottom: 11, left: 15, right: 15 },
+            shapeProperties: { borderRadius: 8 },
             // Custom data properties
             meta: {
                 description: node.description,
@@ -218,9 +217,10 @@ function renderGraph() {
             to: edge.to,
             arrows: 'to',
             color: {
-                color: '#4b5563',
-                highlight: '#6366f1',
-                hover: '#6366f1'
+                color: '#C2B9A7',
+                highlight: '#BCA88A',
+                hover: '#BCA88A',
+                opacity: 0.85
             },
             width: 1.5,
             smooth: {
@@ -238,30 +238,49 @@ function renderGraph() {
     };
 
     const options = {
+        nodes: {
+            chosen: true
+        },
+        edges: {
+            arrows: {
+                to: { enabled: true, scaleFactor: 0.65, type: 'arrow' }
+            },
+            selectionWidth: 2
+        },
         interaction: {
             hover: true,
             dragNodes: true,
             dragView: true,
-            zoomView: true
+            zoomView: true,
+            tooltipDelay: 200
         },
         physics: {
             enabled: true,
             solver: 'forceAtlas2Based',
             forceAtlas2Based: {
-                gravitationalConstant: -40,
-                centralGravity: 0.015,
-                springLength: 100,
-                springConstant: 0.08,
-                damping: 0.4
+                gravitationalConstant: -45,
+                centralGravity: 0.012,
+                springLength: 120,
+                springConstant: 0.06,
+                damping: 0.45,
+                avoidOverlap: 0.5
             },
             stabilization: {
-                iterations: 120,
+                iterations: 140,
                 fit: true
             }
         }
     };
 
     network = new vis.Network(container, data, options);
+
+    // Set canvas background to match the warm alabaster palette
+    network.on('beforeDrawing', function(ctx) {
+        ctx.save();
+        ctx.fillStyle = '#FAF9F6';
+        ctx.fillRect(-ctx.canvas.width, -ctx.canvas.height, ctx.canvas.width * 3, ctx.canvas.height * 3);
+        ctx.restore();
+    });
 
     // Event listener: select node
     network.on("selectNode", (params) => {
@@ -294,14 +313,14 @@ function highlightPrerequisitesAndUnlocks(selectedId, edgesList) {
         }
     });
 
-    // Color code the lines
+    // Color code the lines — using muted palette colors only
     const updatedEdges = edgesList.map(edge => {
         if (incoming.includes(edge.id)) {
-            return { id: edge.id, color: { color: '#ef4444' }, width: 2.5 }; // Incoming prerequisite red
+            return { id: edge.id, color: { color: '#C58F84', opacity: 1 }, width: 2.5 }; // Prerequisite: muted terracotta
         } else if (outgoing.includes(edge.id)) {
-            return { id: edge.id, color: { color: '#10b981' }, width: 2.5 }; // Outgoing unlock green
+            return { id: edge.id, color: { color: '#8F9E8B', opacity: 1 }, width: 2.5 }; // Unlock: sage green
         } else {
-            return { id: edge.id, color: { color: 'rgba(75, 85, 99, 0.15)' }, width: 1.0 }; // Dim others
+            return { id: edge.id, color: { color: '#D2C9B9', opacity: 0.35 }, width: 1.0 }; // Dim: soft greige
         }
     });
 
@@ -313,7 +332,7 @@ function resetEdgesColor(edgesList) {
     const resetEdges = edgesList.map(edge => {
         return {
             id: edge.id,
-            color: { color: '#4b5563' },
+            color: { color: '#C2B9A7', opacity: 0.85 },
             width: 1.5
         };
     });

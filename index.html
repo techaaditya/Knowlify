@@ -48,7 +48,7 @@
                     </div>
                 </div>
                 
-                <div class="nav-label">LEGEND & STATUS</div>
+                <div class="nav-label">NODE MASTERY</div>
                 <div class="legend-list">
                     <div class="legend-item">
                         <span class="legend-color strong"></span>
@@ -56,7 +56,7 @@
                     </div>
                     <div class="legend-item">
                         <span class="legend-color medium"></span>
-                        <span class="legend-text">Medium Mastery (50%-79%)</span>
+                        <span class="legend-text">Medium Mastery (50%–79%)</span>
                     </div>
                     <div class="legend-item">
                         <span class="legend-color weak"></span>
@@ -65,6 +65,22 @@
                     <div class="legend-item">
                         <span class="legend-color unstarted"></span>
                         <span class="legend-text">Not Started (0%)</span>
+                    </div>
+                </div>
+
+                <div class="nav-label">EDGE CONNECTIONS</div>
+                <div class="edge-legend">
+                    <div class="edge-legend-item">
+                        <div class="edge-line prereq"></div>
+                        Prerequisite (incoming)
+                    </div>
+                    <div class="edge-legend-item">
+                        <div class="edge-line unlock"></div>
+                        Unlocks (outgoing)
+                    </div>
+                    <div class="edge-legend-item">
+                        <div class="edge-line default"></div>
+                        Dependency link
                     </div>
                 </div>
             </nav>
@@ -242,7 +258,12 @@
                         
                         <div class="console-output">
                             <div class="console-header">
-                                <span>TERMINAL STAGE OUTPUT</span>
+                                <div class="console-dots">
+                                    <span class="console-dot red"></span>
+                                    <span class="console-dot yellow"></span>
+                                    <span class="console-dot green"></span>
+                                </div>
+                                <span>ACLS ENGINE OUTPUT</span>
                                 <span class="pulse-dot"></span>
                             </div>
                             <pre id="console-logs" class="console-logs">Console idle. Click 'Run Extraction Pipeline' to parse the PDF, extract concepts, generate embeddings, and build the Knowledge Graph.</pre>
