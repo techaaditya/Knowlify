@@ -5,31 +5,31 @@
         "created_at": "2026-05-20 22:26:08",
         "topics": {
             "Limits": {
-                "total_attempts": 10,
-                "correct_answers": 6,
-                "wrong_answers": 4,
-                "hints_used": 9,
-                "total_time_taken": 490,
-                "mastery_score": 42.0,
+                "total_attempts": 13,
+                "correct_answers": 8,
+                "wrong_answers": 5,
+                "hints_used": 12,
+                "total_time_taken": 665,
+                "mastery_score": 37.54,
                 "status": "Weak",
                 "error_types": {
-                    "Sign error": 3,
+                    "Sign error": 4,
                     "Formula mistake": 1
                 },
-                "last_revised": "2026-05-21 20:09:12"
+                "last_revised": "2026-05-21 20:12:29"
             },
             "Derivatives": {
-                "total_attempts": 8,
-                "correct_answers": 2,
-                "wrong_answers": 6,
-                "hints_used": 12,
-                "total_time_taken": 680,
-                "mastery_score": 1.0,
+                "total_attempts": 12,
+                "correct_answers": 3,
+                "wrong_answers": 9,
+                "hints_used": 18,
+                "total_time_taken": 1020,
+                "mastery_score": 0,
                 "status": "Weak",
                 "error_types": {
-                    "Formula mistake": 6
+                    "Formula mistake": 9
                 },
-                "last_revised": "2026-05-20 23:21:44"
+                "last_revised": "2026-05-21 20:12:29"
             },
             "multilingual_voice_assistant": {
                 "total_attempts": 1,
@@ -216,6 +216,69 @@
                 "hints_used": 0,
                 "time_taken_seconds": 10,
                 "attempted_at": "2026-05-21 20:09:12"
+            },
+            {
+                "question_id": "Q1",
+                "topic": "Limits",
+                "is_correct": true,
+                "error_type": null,
+                "hints_used": 0,
+                "time_taken_seconds": 40,
+                "attempted_at": "2026-05-21 20:12:29"
+            },
+            {
+                "question_id": "Q2",
+                "topic": "Limits",
+                "is_correct": true,
+                "error_type": null,
+                "hints_used": 1,
+                "time_taken_seconds": 55,
+                "attempted_at": "2026-05-21 20:12:29"
+            },
+            {
+                "question_id": "Q3",
+                "topic": "Limits",
+                "is_correct": false,
+                "error_type": "Sign error",
+                "hints_used": 2,
+                "time_taken_seconds": 80,
+                "attempted_at": "2026-05-21 20:12:29"
+            },
+            {
+                "question_id": "Q4",
+                "topic": "Derivatives",
+                "is_correct": false,
+                "error_type": "Formula mistake",
+                "hints_used": 2,
+                "time_taken_seconds": 90,
+                "attempted_at": "2026-05-21 20:12:29"
+            },
+            {
+                "question_id": "Q5",
+                "topic": "Derivatives",
+                "is_correct": false,
+                "error_type": "Formula mistake",
+                "hints_used": 1,
+                "time_taken_seconds": 85,
+                "attempted_at": "2026-05-21 20:12:29"
+            },
+            {
+                "question_id": "Q6",
+                "topic": "Derivatives",
+                "is_correct": false,
+                "error_type": "Formula mistake",
+                "hints_used": 2,
+                "time_taken_seconds": 95,
+                "attempted_at": "2026-05-21 20:12:29"
+            },
+            {
+                "question_id": "Q7",
+                "topic": "Derivatives",
+                "is_correct": true,
+                "error_type": null,
+                "hints_used": 1,
+                "time_taken_seconds": 70,
+                "attempted_at": "2026-05-21 20:12:29"
             }
         ]
     }

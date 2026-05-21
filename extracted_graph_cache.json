@@ -1,71 +1,111 @@
 {
     "nodes": [
         {
-            "id": "multilingual_voice_assistant",
-            "display_name": "Multilingual Voice Assistant",
-            "description": "A conversational AI agent built to interact with users in multiple languages, especially code-switched dialects, to perform banking tasks.",
-            "difficulty": 2,
-            "prerequisites": []
-        },
-        {
-            "id": "nepglish_dialect",
-            "display_name": "NepGlish Dialect Model",
-            "description": "A linguistic profile of the NepGlish speech pattern, where speakers transition smoothly between Nepali and English in conversational flows.",
+            "id": "nepglish_speech_corpus",
+            "display_name": "Nepglish Speech Corpus",
+            "description": "A curated collection of spoken utterances that blend Nepali and English (often called Nepglish). The corpus provides audio recordings together with transcriptions and is essential for training language\u2011specific speech technologies.",
             "difficulty": 1,
             "prerequisites": []
         },
         {
-            "id": "code_switching_nlp",
-            "display_name": "Code-Switching NLP",
-            "description": "Natural Language Processing algorithms customized to handle syntax, vocabularies, and intents across code-switched or mixed languages.",
-            "difficulty": 3,
-            "prerequisites": [
-                "multilingual_voice_assistant",
-                "nepglish_dialect"
-            ]
-        },
-        {
-            "id": "automatic_speech_recognition",
-            "display_name": "Automatic Speech Recognition (ASR)",
-            "description": "A specialized speech-to-text pipeline trained on multilingual and code-switched audio datasets to transcribe user queries accurately.",
-            "difficulty": 3,
-            "prerequisites": [
-                "multilingual_voice_assistant"
-            ]
-        },
-        {
-            "id": "audio_dna",
-            "display_name": "Audio DNA & Voice Biometrics",
-            "description": "Biometric system extracting acoustic features from a speaker's voice to create a unique signature, ensuring secure access and authentication.",
-            "difficulty": 4,
-            "prerequisites": []
-        },
-        {
-            "id": "intent_classification",
-            "display_name": "Intent & Entity Classification",
-            "description": "Classification models that detect desired user actions (like blocking a card) and extract entities (card details) from code-switched commands.",
+            "id": "language_detection",
+            "display_name": "Language Detection",
+            "description": "Techniques for automatically identifying whether an utterance is Nepali, English, or a Nepglish mix. Accurate detection is a prerequisite for routing the audio to the appropriate acoustic and language models.",
             "difficulty": 2,
             "prerequisites": [
-                "code_switching_nlp"
+                "nepglish_speech_corpus"
+            ]
+        },
+        {
+            "id": "nepali_nepglish_asr",
+            "display_name": "Nepali\u2011Ne\u200bpglish ASR",
+            "description": "Automatic Speech Recognition models that transcribe spoken Nepali, English, and their code\u2011mixed forms. Training relies on the Nepglish speech corpus and benefits from prior language\u2011detection to select the correct model variant.",
+            "difficulty": 3,
+            "prerequisites": [
+                "nepglish_speech_corpus",
+                "language_detection"
+            ]
+        },
+        {
+            "id": "speech_to_text_engine",
+            "display_name": "Speech\u2011to\u2011Text Engine",
+            "description": "A full\u2011stack system that converts raw audio into textual output, integrating acoustic modeling, language modeling, and post\u2011processing. It builds directly on a trained Nepali\u2011Ne\u200bpglish ASR component.",
+            "difficulty": 3,
+            "prerequisites": [
+                "nepali_nepglish_asr"
+            ]
+        },
+        {
+            "id": "conversational_ai",
+            "display_name": "Conversational AI",
+            "description": "Dialogue management and natural language understanding components that enable interactive voice agents. It requires reliable transcription from the speech\u2011to\u2011text engine and knowledge of the spoken language via detection.",
+            "difficulty": 3,
+            "prerequisites": [
+                "nepali_nepglish_asr",
+                "language_detection"
+            ]
+        },
+        {
+            "id": "voice_banking",
+            "display_name": "Voice Banking",
+            "description": "Banking services accessed through spoken interaction, such as balance inquiries, fund transfers, and transaction confirmations. Successful deployment depends on accurate speech\u2011to\u2011text conversion and robust conversational AI for handling banking intents.",
+            "difficulty": 4,
+            "prerequisites": [
+                "speech_to_text_engine",
+                "conversational_ai"
+            ]
+        },
+        {
+            "id": "multilingual_voice_assistants",
+            "display_name": "Multilingual Voice Assistants",
+            "description": "Voice\u2011driven assistants that can operate across multiple languages, switching seamlessly between Nepali, English, and Nepglish. They rely on language detection to select the proper speech\u2011to\u2011text engine and on downstream dialogue capabilities.",
+            "difficulty": 4,
+            "prerequisites": [
+                "language_detection",
+                "speech_to_text_engine"
             ]
         }
     ],
     "edges": [
         {
-            "from": "multilingual_voice_assistant",
-            "to": "code_switching_nlp"
+            "from": "nepglish_speech_corpus",
+            "to": "language_detection"
         },
         {
-            "from": "multilingual_voice_assistant",
-            "to": "automatic_speech_recognition"
+            "from": "nepglish_speech_corpus",
+            "to": "nepali_nepglish_asr"
         },
         {
-            "from": "nepglish_dialect",
-            "to": "code_switching_nlp"
+            "from": "language_detection",
+            "to": "nepali_nepglish_asr"
         },
         {
-            "from": "code_switching_nlp",
-            "to": "intent_classification"
+            "from": "language_detection",
+            "to": "conversational_ai"
+        },
+        {
+            "from": "language_detection",
+            "to": "multilingual_voice_assistants"
+        },
+        {
+            "from": "nepali_nepglish_asr",
+            "to": "speech_to_text_engine"
+        },
+        {
+            "from": "nepali_nepglish_asr",
+            "to": "conversational_ai"
+        },
+        {
+            "from": "speech_to_text_engine",
+            "to": "voice_banking"
+        },
+        {
+            "from": "speech_to_text_engine",
+            "to": "multilingual_voice_assistants"
+        },
+        {
+            "from": "conversational_ai",
+            "to": "voice_banking"
         }
     ]
 }
