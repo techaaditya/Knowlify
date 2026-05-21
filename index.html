@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Knowlify - Interactive Knowledge Graph & Student Modeling Dashboard</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    
+    <!-- Vis.js Standalone for network graph rendering -->
+    <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+    
+    <!-- Custom styling -->
+    <link rel="stylesheet" href="index.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <aside class="app-sidebar">
+            <div class="brand-container">
+                <span class="brand-icon">🧠</span>
+                <div class="brand-text">
+                    <h1>KNOWLIFY</h1>
+                    <p>ACLS Context Engine</p>
+                </div>
+            </div>
+            
+            <nav class="nav-menu">
+                <div class="nav-label">COURSES & GRAPHS</div>
+                
+                <div class="course-selector-container">
+                    <label for="course-select">Active Knowledge Graph</label>
+                    <select id="course-select" class="course-dropdown">
+                        <option value="Calculus">📐 Calculus Course (Simulated)</option>
+                        <option value="VoiceBanking">🎙️ Voice Banking Paper (sample.pdf)</option>
+                    </select>
+                </div>
+                
+                <div class="nav-label">ACTIVE STUDENT</div>
+                <div class="student-card">
+                    <div class="student-avatar">AJ</div>
+                    <div class="student-info">
+                        <h3 id="student-name">Alex Johnson</h3>
+                        <p id="student-id">Student ID: S001</p>
+                    </div>
+                </div>
+                
+                <div class="nav-label">LEGEND & STATUS</div>
+                <div class="legend-list">
+                    <div class="legend-item">
+                        <span class="legend-color strong"></span>
+                        <span class="legend-text">Strong Mastery (&ge;80%)</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-color medium"></span>
+                        <span class="legend-text">Medium Mastery (50%-79%)</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-color weak"></span>
+                        <span class="legend-text">Weak Mastery (&lt;50%)</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-color unstarted"></span>
+                        <span class="legend-text">Not Started (0%)</span>
+                    </div>
+                </div>
+            </nav>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <!-- Header/Dashboard Summary -->
+            <header class="dashboard-header">
+                <div class="header-title">
+                    <h2>Knowledge Graph & Student Analytics</h2>
+                    <p>Observe concept hierarchies and misconceptions in real-time</p>
+                </div>
+                <div class="global-stats">
+                    <div class="stat-box">
+                        <span class="stat-label">Mastery Rate</span>
+                        <span id="mastery-rate" class="stat-value">0%</span>
+                    </div>
+                    <div class="stat-box warning-box" id="global-warning-box">
+                        <span class="stat-label">Misconceptions</span>
+                        <span id="misconception-count" class="stat-value">0 Active</span>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Graph Canvas and Info Panel -->
+            <section class="dashboard-row grid-2-1">
+                <div class="card graph-card">
+                    <div class="card-header">
+                        <h3>Interactive Graph Canvas</h3>
+                        <span class="badge">Drag to Pan / Scroll to Zoom</span>
+                    </div>
+                    <div class="graph-wrapper">
+                        <div id="network-container"></div>
+                        <div id="network-loader" class="network-loader hidden">
+                            <div class="spinner"></div>
+                            <p>Constructing Knowledge Graph...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Concept Details Sidebar -->
+                <div class="card detail-card" id="detail-card">
+                    <div class="card-header">
+                        <h3>Concept Insights</h3>
+                        <span class="badge detail-status" id="concept-status">Select a Node</span>
+                    </div>
+                    <div id="detail-placeholder" class="detail-placeholder">
+                        <span class="placeholder-icon">📐</span>
+                        <p>Click on any concept node in the knowledge graph to view its detailed mastery, prerequisites, unlocked topics, and adaptive recommendations.</p>
+                    </div>
+                    <div id="detail-content" class="detail-content hidden">
+                        <h2 id="concept-title" class="concept-title">Concept Name</h2>
+                        <span class="difficulty-rating" id="concept-difficulty">🌟🌟</span>
+                        
+                        <p id="concept-description" class="concept-desc">No description available for this concept.</p>
+                        
+                        <div class="insight-section">
+                            <h4>Student Mastery Metrics</h4>
+                            <div class="progress-bar-container">
+                                <div class="progress-bar" id="concept-progress-bar" style="width: 0%"></div>
+                                <span class="progress-text" id="concept-mastery-text">0%</span>
+                            </div>
+                            
+                            <div class="metrics-grid">
+                                <div class="metric-item">
+                                    <span class="metric-label">Accuracy</span>
+                                    <span class="metric-value" id="metric-accuracy">0/0</span>
+                                </div>
+                                <div class="metric-item">
+                                    <span class="metric-label">Hints Used</span>
+                                    <span class="metric-value" id="metric-hints">0</span>
+                                </div>
+                                <div class="metric-item">
+                                    <span class="metric-label">Time Spent</span>
+                                    <span class="metric-value" id="metric-time">0s</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="insight-section" id="section-error-profile">
+                            <h4>Error Profile & Misconceptions</h4>
+                            <ul class="error-list" id="concept-errors">
+                                <li>No errors recorded. Excellent work!</li>
+                            </ul>
+                        </div>
+
+                        <div class="insight-section">
+                            <h4>Adaptive Recommendations</h4>
+                            <div class="recommendation-box" id="concept-recommendation">
+                                Select a topic to view signals.
+                            </div>
+                        </div>
+
+                        <div class="insight-section relationship-section">
+                            <div class="rel-box">
+                                <h5>Required Prerequisites</h5>
+                                <div class="rel-list" id="concept-prereqs">None</div>
+                            </div>
+                            <div class="rel-box">
+                                <h5>Unlocks Next</h5>
+                                <div class="rel-list" id="concept-unlocks">None</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Control Deck / Simulation Console -->
+            <section class="dashboard-row grid-1-1">
+                <!-- Practice Quiz Simulator -->
+                <div class="card control-card">
+                    <div class="card-header">
+                        <h3>Practice Quiz Simulator</h3>
+                        <span class="badge simulator-badge">Update Mastery Status</span>
+                    </div>
+                    
+                    <form id="simulator-form" class="simulator-form">
+                        <div class="form-group">
+                            <label for="sim-topic">Concept Topic</label>
+                            <select id="sim-topic" class="form-control" required>
+                                <!-- Populated dynamically -->
+                            </select>
+                        </div>
+                        
+                        <div class="form-row-2">
+                            <div class="form-group">
+                                <label for="sim-correct">Question Result</label>
+                                <select id="sim-correct" class="form-control">
+                                    <option value="correct">✅ Correct Answer</option>
+                                    <option value="incorrect">❌ Incorrect Answer</option>
+                                </select>
+                            </div>
+                            <div class="form-group hidden" id="group-error-type">
+                                <label for="sim-error-type">Misconception / Error Type</label>
+                                <select id="sim-error-type" class="form-control">
+                                    <!-- Populated dynamically based on course -->
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-row-2">
+                            <div class="form-group">
+                                <label for="sim-hints">Hints Used (0-5)</label>
+                                <input type="number" id="sim-hints" class="form-control" min="0" max="5" value="0">
+                            </div>
+                            <div class="form-group">
+                                <label for="sim-time">Time Taken (seconds)</label>
+                                <input type="number" id="sim-time" class="form-control" min="5" max="300" value="45">
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary" id="btn-submit-attempt">Record Practice Attempt</button>
+                    </form>
+                </div>
+
+                <!-- PDF Context Parser Console -->
+                <div class="card control-card">
+                    <div class="card-header">
+                        <h3>PDF Context Extraction Console</h3>
+                        <span class="badge paper-badge">Engine Pipeline</span>
+                    </div>
+                    
+                    <div class="pipeline-console">
+                        <div class="pipeline-actions">
+                            <div class="pdf-info-row">
+                                <span class="pdf-icon">📄</span>
+                                <div class="pdf-details">
+                                    <span class="pdf-name">sample.pdf</span>
+                                    <span class="pdf-size">77.3 KB (Voice Banking Sahayak Paper)</span>
+                                </div>
+                            </div>
+                            <button id="btn-run-pipeline" class="btn btn-secondary">Run Extraction Pipeline</button>
+                        </div>
+                        
+                        <div class="console-output">
+                            <div class="console-header">
+                                <span>TERMINAL STAGE OUTPUT</span>
+                                <span class="pulse-dot"></span>
+                            </div>
+                            <pre id="console-logs" class="console-logs">Console idle. Click 'Run Extraction Pipeline' to parse the PDF, extract concepts, generate embeddings, and build the Knowledge Graph.</pre>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Script Entrypoint -->
+    <script src="index.js"></script>
+</body>
+</html>

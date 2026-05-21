@@ -9,6 +9,13 @@ from topic_extractor import extract_topics
 from embedder import embed_texts
 from graph_builder import build_knowledge_graph
 
+import sys
+if hasattr(sys.stdout, 'reconfigure'):
+    try:
+        sys.stdout.reconfigure(encoding='utf-8')
+    except Exception:
+        pass
+
 def run_engine_prototype(pdf_path: str):
     print(f"\n🚀 --- ACLS Context Engine Started ---")
     
@@ -24,8 +31,11 @@ def run_engine_prototype(pdf_path: str):
     print("\n3. Generating Semantic Embeddings (nomic-embed-text)...")
     texts_to_embed = [t.get('description', '') for t in topics_list]
     if texts_to_embed:
-        embeddings = embed_texts(texts_to_embed)
-        print(f"   -> Generated {len(embeddings)} vectors (Dim: {len(embeddings[0])}).")
+        try:
+            embeddings = embed_texts(texts_to_embed)
+            print(f"   -> Generated {len(embeddings)} vectors (Dim: {len(embeddings[0])}).")
+        except Exception as e:
+            print(f"   -> Warning: Embedding generation failed ({e}). Continuing.")
     
     print("\n4. Building Knowledge Graph...")
     G = build_knowledge_graph(topics_list)
@@ -48,6 +58,7 @@ def run_engine_prototype(pdf_path: str):
         if leads_to:
             print(f"   🔓 Unlocks: {', '.join(leads_to)}")
     print("\n==============================================\n")
+    return G, topics_list
 
 if __name__ == "__main__":
     # Ensure Ollama is running on your machine before executing!

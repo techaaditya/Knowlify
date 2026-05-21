@@ -1,0 +1,71 @@
+{
+    "nodes": [
+        {
+            "id": "multilingual_voice_assistant",
+            "display_name": "Multilingual Voice Assistant",
+            "description": "A conversational AI agent built to interact with users in multiple languages, especially code-switched dialects, to perform banking tasks.",
+            "difficulty": 2,
+            "prerequisites": []
+        },
+        {
+            "id": "nepglish_dialect",
+            "display_name": "NepGlish Dialect Model",
+            "description": "A linguistic profile of the NepGlish speech pattern, where speakers transition smoothly between Nepali and English in conversational flows.",
+            "difficulty": 1,
+            "prerequisites": []
+        },
+        {
+            "id": "code_switching_nlp",
+            "display_name": "Code-Switching NLP",
+            "description": "Natural Language Processing algorithms customized to handle syntax, vocabularies, and intents across code-switched or mixed languages.",
+            "difficulty": 3,
+            "prerequisites": [
+                "multilingual_voice_assistant",
+                "nepglish_dialect"
+            ]
+        },
+        {
+            "id": "automatic_speech_recognition",
+            "display_name": "Automatic Speech Recognition (ASR)",
+            "description": "A specialized speech-to-text pipeline trained on multilingual and code-switched audio datasets to transcribe user queries accurately.",
+            "difficulty": 3,
+            "prerequisites": [
+                "multilingual_voice_assistant"
+            ]
+        },
+        {
+            "id": "audio_dna",
+            "display_name": "Audio DNA & Voice Biometrics",
+            "description": "Biometric system extracting acoustic features from a speaker's voice to create a unique signature, ensuring secure access and authentication.",
+            "difficulty": 4,
+            "prerequisites": []
+        },
+        {
+            "id": "intent_classification",
+            "display_name": "Intent & Entity Classification",
+            "description": "Classification models that detect desired user actions (like blocking a card) and extract entities (card details) from code-switched commands.",
+            "difficulty": 2,
+            "prerequisites": [
+                "code_switching_nlp"
+            ]
+        }
+    ],
+    "edges": [
+        {
+            "from": "multilingual_voice_assistant",
+            "to": "code_switching_nlp"
+        },
+        {
+            "from": "multilingual_voice_assistant",
+            "to": "automatic_speech_recognition"
+        },
+        {
+            "from": "nepglish_dialect",
+            "to": "code_switching_nlp"
+        },
+        {
+            "from": "code_switching_nlp",
+            "to": "intent_classification"
+        }
+    ]
+}
