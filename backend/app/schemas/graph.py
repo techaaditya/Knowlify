@@ -1,8 +1,8 @@
 # Pydantic schemas - Knowledge Graph validation
 # Defines structures verifying nodes, edges, and graph layouts during API calls.
 
-from pydantic import BaseModel
-from typing import List, Optional
+from pydantic import BaseModel, Field, ConfigDict
+from typing import List
 
 class GraphNode(BaseModel):
     id: str
@@ -12,8 +12,10 @@ class GraphNode(BaseModel):
     prerequisites: List[str]
 
 class GraphEdge(BaseModel):
-    from_node: str  # maps to Vis.js 'from'
-    to_node: str    # maps to Vis.js 'to'
+    model_config = ConfigDict(populate_by_name=True)
+
+    from_: str = Field(alias="from")
+    to: str = Field(alias="to")
 
 class KnowledgeGraphResponse(BaseModel):
     nodes: List[GraphNode]
