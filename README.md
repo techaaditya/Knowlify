@@ -56,34 +56,92 @@ Knowlify/
 
 ---
 
-## 🚀 Getting Started
+## 🚀 How to Run the Project
 
-### Prerequisites
-- Python 3.11+
-- Node.js 18+
-- Ollama running locally (optional, falls back to heuristics)
+Follow these steps to run the backend and frontend servers on your local Windows machine.
 
-### Backend Setup
+### 📋 Prerequisites
+- **Python 3.11+** (Make sure Python is added to your system PATH)
+- **Node.js 18+** (Includes `npm`)
+- **Ollama** running locally (Optional, falls back to heuristic keyword extraction if not running)
 
-```bash
-cd backend
-python -m venv venv
-venv\Scripts\activate         # Windows
-pip install -r requirements.txt
-cp .env.example .env          # Edit with your credentials
-uvicorn app.main:app --reload --port 8000
-```
+---
 
-### Frontend Setup
+### 🐍 1. Running the Backend (FastAPI)
 
-```bash
-cd frontend
-npm install
-npm run dev
-```
+Choose the setup instructions corresponding to the shell you are using:
 
-### Docker (Full Stack)
+#### Option A: Using Windows PowerShell or Command Prompt (CMD)
+1. Navigate into the `backend` directory:
+   ```powershell
+   cd backend
+   ```
+2. Activate the pre-configured virtual environment:
+   * **PowerShell**:
+     ```powershell
+     .\venv\Scripts\Activate.ps1
+     ```
+   * **Command Prompt (CMD)**:
+     ```cmd
+     .\venv\Scripts\activate.bat
+     ```
+3. Run the FastAPI development server:
+   ```powershell
+   uvicorn app.main:app --reload --port 8000
+   ```
 
+#### Option B: Using Git Bash
+1. Navigate into the `backend` directory:
+   ```bash
+   cd backend
+   ```
+2. Activate the pre-configured virtual environment:
+   ```bash
+   source venv/Scripts/activate
+   ```
+3. Run the FastAPI development server:
+   ```bash
+   uvicorn app.main:app --reload --port 8000
+   ```
+
+> [!NOTE]
+> The backend server will run at [http://localhost:8000](http://localhost:8000). You can check the interactive Swagger documentation at [http://localhost:8000/docs](http://localhost:8000/docs).
+
+---
+
+### 🧠 2. Running the Student Modeling Engine Demo (Optional CLI Demo)
+If you want to run the standalone command-line diagnostic simulation for the BKT & Misconception Diagnosis (Engine 2):
+1. Navigate to the cognitive engine directory:
+   ```bash
+   cd backend
+   # Ensure environment is active (e.g., source venv/Scripts/activate)
+   python app/engines/cognitive/run_student_demo.py
+   ```
+
+---
+
+### ⚛️ 3. Running the Frontend (React + Vite)
+
+1. Open a **new terminal tab or window** and navigate to the `frontend` directory:
+   ```bash
+   cd frontend
+   ```
+2. Install the node packages (if not already done):
+   ```bash
+   npm install
+   ```
+3. Launch the React development server:
+   ```bash
+   npm run dev
+   ```
+
+> [!NOTE]
+> The React development server will start at [http://localhost:5173](http://localhost:5173). It communicates with the backend API on port `8000` automatically.
+
+---
+
+### 🐳 4. Running via Docker-Compose (Full Stack)
+If you prefer running both servers along with a PostgreSQL and Redis database in containers:
 ```bash
 docker-compose up --build
 ```
@@ -92,13 +150,13 @@ docker-compose up --build
 
 ## 🧠 The 5 AI Engines
 
-| Engine | Name | Status |
-|--------|------|--------|
-| 1 | Context Engine (PDF → Knowledge Graph) | ✅ Built |
-| 2 | Cognitive Engine (BKT & Misconceptions) | ✅ Built |
-| 3 | Adaptive Engine (SM-2 Spaced Repetition) | 🔧 Stub |
-| 4 | Generative Engine (Flashcards & Socratic) | 🔧 Stub |
-| 5 | Analytics Engine (Dashboard Metrics) | 🔧 Stub |
+| Engine | Name | Description | Status |
+|--------|------|-------------|--------|
+| **1** | **Context Engine** | Parses PDF & constructs concept maps with NetworkX and KeyBERT. | ✅ Built |
+| **2** | **Cognitive Engine** | Tracks student mastery state and diagnoses repeated misconceptions. | ✅ Built |
+| **3** | **Adaptive Engine** | Calculates intervals via SM-2 spaced repetition & validates prerequisites. | 🔧 Stub |
+| **4** | **Generative Engine** | Auto-generates Socratic questions and quiz flashcard sets. | 🔧 Stub |
+| **5** | **Analytics Engine** | Processes dashboard radar charts and mastery metrics. | 🔧 Stub |
 
 ---
 
@@ -106,11 +164,11 @@ docker-compose up --build
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/student` | Get student profile + mastery data |
-| GET | `/api/graph?course=Calculus` | Get knowledge graph nodes + edges |
-| POST | `/api/attempt` | Record a quiz attempt |
-| POST | `/api/extract` | Run PDF extraction pipeline |
-| POST | `/api/chat` | Socratic tutoring chat |
+| **GET** | `/api/student` | Retrieve student profile, topic progress, and error history. |
+| **GET** | `/api/graph` | Fetch the structured knowledge graph nodes & edges (Calculus or fallback). |
+| **POST** | `/api/attempt` | Submit a practice attempt to calculate BKT mastery updates. |
+| **POST** | `/api/extract` | Run the PDF extraction pipeline to generate and cache new graphs. |
+| **POST** | `/api/chat` | Send a prompt to the Socratic tutoring model. |
 
 ---
 
