@@ -4,7 +4,7 @@
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from .routers import documents, chat, quiz, analytics
+from .routers import documents, chat, quiz, analytics, adaptive
 from .config import settings
 
 app = FastAPI(title=settings.APP_NAME)
@@ -23,6 +23,7 @@ app.include_router(documents.router)
 app.include_router(chat.router)
 app.include_router(quiz.router)
 app.include_router(analytics.router)
+app.include_router(adaptive.router)
 
 @app.get("/")
 async def root():

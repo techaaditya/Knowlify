@@ -10,3 +10,21 @@ const client = axios.create({
 });
 
 export default client;
+
+export interface AdaptiveRecommendation {
+  success: boolean;
+  student_id: string;
+  concept_id: string;
+  concept_name: string;
+  previous_mastery: number;
+  current_mastery: number;
+  forgetting_risk: string;
+  next_action: string;
+  recommended_concept: string | null;
+  reason: string;
+}
+
+export const getAdaptiveDemoRecommendation = async () => {
+  const response = await client.get<AdaptiveRecommendation>('/api/adaptive/demo-recommendation');
+  return response.data;
+};
