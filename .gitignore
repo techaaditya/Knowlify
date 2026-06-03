@@ -1,1 +1,30 @@
+# Environments
 .env
+.env.local
+.env.*
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+env/
+.venv/
+
+# Node / Frontend
+node_modules/
+dist/
+build/
+npm-debug.log*
+yarn-error.log*
+
+# OS Files
+.DS_Store
+Thumbs.db
+
+# Uploaded Files & Databases
+backend/uploads/
+*.sqlite3
+*.db
+extracted_graph_cache.json
+student_data.json
