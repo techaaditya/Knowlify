@@ -30,3 +30,8 @@ backend/uploads/
 *.db
 extracted_graph_cache.json
 student_data.json
+
+
+
+# Documentation
+docs2/docs2/
