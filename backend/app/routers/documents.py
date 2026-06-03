@@ -8,7 +8,8 @@ from ..engines.context.pipeline import run_engine_prototype
 
 router = APIRouter(prefix="/api", tags=["documents"])
 
-CACHE_FILE = "extracted_graph_cache.json"
+_HERE = os.path.dirname(os.path.abspath(__file__))
+CACHE_FILE = os.path.join(_HERE, "..", "extracted_graph_cache.json")
 
 def generate_pdf_graph(pdf_path: str):
     try:
