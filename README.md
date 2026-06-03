@@ -4,7 +4,7 @@
 
 ---
 
-## 📐 Project Architecture
+## 📐 Project Architecture/folder structure 
 
 ```
 Knowlify/
