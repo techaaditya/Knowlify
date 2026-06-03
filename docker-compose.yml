@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+  db:
+    image: ankane/pgvector:latest
+    container_name: knowlify_db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgrespassword
+      POSTGRES_DB: knowlify
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - knowlify-network
+
+  redis:
+    image: redis:alpine
+    container_name: knowlify_redis
+    ports:
+      - "6379:6379"
+    networks:
+      - knowlify-network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: knowlify_backend
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgrespassword@db:5432/knowlify
+      - REDIS_URL=redis://redis:6379/0
+      - OLLAMA_BASE_URL=http://host.docker.internal:11434/v1
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+      - redis
+    networks:
+      - knowlify-network
+
+networks:
+  knowlify-network:
+    driver: bridge
+
+volumes:
+  pgdata:
