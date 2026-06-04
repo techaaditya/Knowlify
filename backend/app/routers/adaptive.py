@@ -1,5 +1,6 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Header, HTTPException
 
+from ..config import settings
 from ..engines.adaptive import adaptive_engine, schemas
 from ..engines.adaptive.database import SessionLocal
 from ..engines.adaptive.seed_data import seed_demo_data
@@ -9,13 +10,16 @@ router = APIRouter(prefix="/api/adaptive", tags=["adaptive"])
 
 
 @router.get("/demo-recommendation")
-async def demo_recommendation():
+async def demo_recommendation(x_adaptive_api_key: str | None = Header(default=None)):
     """
     Frontend demo endpoint for the Adaptive Learning Engine.
 
     It seeds the MVP biology concepts, records one Active Transport attempt,
     and returns the recommendation that should be displayed in the dashboard.
     """
+    if settings.ADAPTIVE_API_KEY and x_adaptive_api_key != settings.ADAPTIVE_API_KEY:
+        raise HTTPException(status_code=401, detail="Invalid adaptive engine API key.")
+
     try:
         seed_demo_data()
         db = SessionLocal()

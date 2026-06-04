@@ -117,7 +117,7 @@ export const DashboardPage: React.FC = () => {
               <p className="text-theme-muted uppercase tracking-wider text-[10px]">Current Concept</p>
               <p className="text-theme-text font-bold text-sm">{adaptiveRecommendation.concept_name}</p>
               <p className="text-theme-muted">
-                Mastery: {(adaptiveRecommendation.previous_mastery * 100).toFixed(0)}% -> {(adaptiveRecommendation.current_mastery * 100).toFixed(0)}%
+                Mastery: {(adaptiveRecommendation.previous_mastery * 100).toFixed(0)}% {'->'} {(adaptiveRecommendation.current_mastery * 100).toFixed(0)}%
               </p>
             </div>
             <div className="space-y-2">

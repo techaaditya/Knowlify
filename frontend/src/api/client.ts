@@ -1,6 +1,7 @@
 import axios from 'axios';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const ADAPTIVE_API_KEY = import.meta.env.VITE_ADAPTIVE_API_KEY;
 
 const client = axios.create({
   baseURL: API_URL,
@@ -25,6 +26,8 @@ export interface AdaptiveRecommendation {
 }
 
 export const getAdaptiveDemoRecommendation = async () => {
-  const response = await client.get<AdaptiveRecommendation>('/api/adaptive/demo-recommendation');
+  const response = await client.get<AdaptiveRecommendation>('/api/adaptive/demo-recommendation', {
+    headers: ADAPTIVE_API_KEY ? { 'X-Adaptive-API-Key': ADAPTIVE_API_KEY } : undefined,
+  });
   return response.data;
 };
