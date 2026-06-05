@@ -152,7 +152,7 @@ docker-compose up --build
 
 | Engine | Name | Description | Status |
 |--------|------|-------------|--------|
-| **1** | **Context Engine** | Parses PDF & constructs concept maps with NetworkX and KeyBERT. | ✅ Built |
+| **1** | **Context Engine** | Multi-source ingestion (PDF, DOCX, PPTX, web, YouTube, notes) → GraphRAG pipeline with NetworkX and KeyBERT. | ✅ Built |
 | **2** | **Cognitive Engine** | Tracks student mastery state and diagnoses repeated misconceptions. | ✅ Built |
 | **3** | **Adaptive Engine** | Calculates intervals via SM-2 spaced repetition & validates prerequisites. | 🔧 Stub |
 | **4** | **Generative Engine** | Auto-generates Socratic questions and quiz flashcard sets. | 🔧 Stub |
@@ -161,6 +161,26 @@ docker-compose up --build
 ---
 
 ## 📡 API Endpoints
+
+### Knowledge Ingestion
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| **POST** | `/api/sources/upload` | Upload documents (PDF, DOCX, PPTX, TXT, MD) — max 50 MB/file, 20 files, 500 MB batch |
+| **POST** | `/api/sources/paste` | Add pasted text as a knowledge source |
+| **POST** | `/api/sources/website` | Import content from a website URL |
+| **POST** | `/api/sources/youtube` | Import YouTube video via transcript |
+| **GET** | `/api/sources/{id}` | Get source details with AI insights |
+| **GET** | `/api/sources/{id}/status` | Poll processing status and pipeline logs |
+| **GET** | `/api/sources/workspace/{workspace_id}` | List, search, filter, and sort workspace sources |
+| **PATCH** | `/api/sources/{id}` | Rename a source |
+| **POST** | `/api/sources/{id}/reprocess` | Re-run the ingestion pipeline |
+| **DELETE** | `/api/sources/{id}` | Delete a source |
+| **GET** | `/api/workspaces` | List knowledge workspaces |
+| **GET** | `/api/workspaces/{id}/dashboard` | Knowledge metrics, growth, and popular topics |
+| **GET** | `/api/workspaces/{id}/graph` | Merged workspace knowledge graph |
+
+### Learning & Analytics
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|

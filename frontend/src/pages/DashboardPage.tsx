@@ -1,10 +1,28 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useUserStore } from '../store/userStore';
 import { MasteryRadar } from '../components/Dashboard/MasteryRadar';
+import { AdaptiveRecommendation, getAdaptiveDemoRecommendation } from '../api/client';
 
 export const DashboardPage: React.FC = () => {
   const studentData = useUserStore((state) => state.studentData);
   const loading = useUserStore((state) => state.loading);
+  const [adaptiveRecommendation, setAdaptiveRecommendation] = useState<AdaptiveRecommendation | null>(null);
+  const [adaptiveLoading, setAdaptiveLoading] = useState(true);
+  const [adaptiveError, setAdaptiveError] = useState<string | null>(null);
+
+  useEffect(() => {
+    getAdaptiveDemoRecommendation()
+      .then((data) => {
+        setAdaptiveRecommendation(data);
+        setAdaptiveError(null);
+      })
+      .catch(() => {
+        setAdaptiveError('Adaptive recommendation is unavailable.');
+      })
+      .finally(() => {
+        setAdaptiveLoading(false);
+      });
+  }, []);
 
   if (loading && !studentData) {
     return <div className="text-center p-8">Loading Student Profile...</div>;
@@ -83,6 +101,41 @@ export const DashboardPage: React.FC = () => {
             </div>
           </div>
         </div>
+      </div>
+
+      <div className="card border-l-4 border-l-theme-primary">
+        <div className="card-header">
+          <h3>Adaptive Learning Recommendation</h3>
+        </div>
+        {adaptiveLoading ? (
+          <div className="text-xs text-theme-muted">Loading adaptive recommendation...</div>
+        ) : adaptiveError ? (
+          <div className="text-xs text-mastery-weak-text">{adaptiveError}</div>
+        ) : adaptiveRecommendation ? (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 text-xs">
+            <div className="space-y-2">
+              <p className="text-theme-muted uppercase tracking-wider text-[10px]">Current Concept</p>
+              <p className="text-theme-text font-bold text-sm">{adaptiveRecommendation.concept_name}</p>
+              <p className="text-theme-muted">
+                Mastery: {(adaptiveRecommendation.previous_mastery * 100).toFixed(0)}% {'->'} {(adaptiveRecommendation.current_mastery * 100).toFixed(0)}%
+              </p>
+            </div>
+            <div className="space-y-2">
+              <p className="text-theme-muted uppercase tracking-wider text-[10px]">Next Action</p>
+              <p className="text-theme-text font-bold text-sm">
+                {adaptiveRecommendation.next_action.split('_').join(' ')}
+              </p>
+              <p className="text-theme-muted">
+                Recommended: {adaptiveRecommendation.recommended_concept || 'None'}
+              </p>
+            </div>
+            <div className="space-y-2">
+              <p className="text-theme-muted uppercase tracking-wider text-[10px]">Reason</p>
+              <p className="text-theme-text leading-relaxed">{adaptiveRecommendation.reason}</p>
+              <p className="text-theme-muted">Forgetting risk: {adaptiveRecommendation.forgetting_risk}</p>
+            </div>
+          </div>
+        ) : null}
       </div>
       
       <div className="card">
