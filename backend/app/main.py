@@ -4,10 +4,16 @@
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from .routers import documents, chat, quiz, analytics, adaptive
+from .routers import documents, chat, quiz, analytics, adaptive, sources, workspaces
 from .config import settings
+from .database import init_db
 
 app = FastAPI(title=settings.APP_NAME)
+
+
+@app.on_event("startup")
+def on_startup():
+    init_db()
 
 # Enable CORS for frontend cross-origin requests
 app.add_middleware(
@@ -24,6 +30,8 @@ app.include_router(chat.router)
 app.include_router(quiz.router)
 app.include_router(analytics.router)
 app.include_router(adaptive.router)
+app.include_router(sources.router)
+app.include_router(workspaces.router)
 
 @app.get("/")
 async def root():
