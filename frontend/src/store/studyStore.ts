@@ -1,5 +1,7 @@
 import { create } from 'zustand';
 import client from '../api/client';
+import { getWorkspaceGraph } from '../api/sources';
+import { useSourcesStore } from './sourcesStore';
 
 export interface GraphNode {
   id: string;
@@ -27,13 +29,13 @@ interface StudyState {
   loading: boolean;
   error: string | null;
   setCourse: (course: string) => void;
-  fetchGraphData: (course?: string) => Promise<void>;
+  fetchGraphData: (course?: string, workspaceId?: string) => Promise<void>;
   setSelectedNodeId: (nodeId: string | null) => void;
   runExtractionPipeline: () => Promise<GraphData>;
 }
 
 export const useStudyStore = create<StudyState>((set, get) => ({
-  currentCourse: 'Calculus',
+  currentCourse: 'Workspace',
   graphData: null,
   selectedNodeId: null,
   selectedNodeData: null,
@@ -42,10 +44,19 @@ export const useStudyStore = create<StudyState>((set, get) => ({
   setCourse: (course) => {
     set({ currentCourse: course, selectedNodeId: null, selectedNodeData: null });
   },
-  fetchGraphData: async (course) => {
+  fetchGraphData: async (course, workspaceId) => {
     const activeCourse = course || get().currentCourse;
     set({ loading: true, error: null });
     try {
+      if (activeCourse === 'Workspace' && workspaceId) {
+        const selectedIds = useSourcesStore.getState().selectedSourceIds;
+        const graphData = await getWorkspaceGraph(
+          workspaceId,
+          selectedIds.length > 0 ? selectedIds : undefined
+        );
+        set({ graphData, loading: false });
+        return;
+      }
       const res = await client.get(`/api/graph?course=${activeCourse}`);
       set({ graphData: res.data, loading: false });
     } catch (err: any) {
