@@ -1,7 +1,17 @@
 import React, { useState } from 'react';
 import client from '../../api/client';
 
-export const ChatWindow: React.FC<{ concept: string }> = ({ concept }) => {
+interface SourceContext {
+  id: string;
+  name: string;
+  summary?: string;
+  topics?: string[];
+}
+
+export const ChatWindow: React.FC<{ concept: string; sources?: SourceContext[] }> = ({
+  concept,
+  sources = [],
+}) => {
   const [messages, setMessages] = useState<Array<{ sender: 'user' | 'tutor'; text: string }>>([
     { sender: 'tutor', text: `Greetings! Let's explore '${concept}' together. What do you think this concept describes?` }
   ]);
@@ -20,7 +30,13 @@ export const ChatWindow: React.FC<{ concept: string }> = ({ concept }) => {
     try {
       const res = await client.post('/api/chat', {
         concept,
-        message: userText
+        message: userText,
+        sources: sources.map((s) => ({
+          id: s.id,
+          name: s.name,
+          summary: s.summary,
+          topics: s.topics || [],
+        })),
       });
       setMessages(prev => [...prev, { sender: 'tutor', text: res.data.reply }]);
     } catch (err) {
