@@ -32,3 +32,5 @@ class Recommendation(BaseModel):
     next_action: str
     recommended_concept: Optional[str] = None
     reason: str
+    misconception: Optional[str] = None
+    mastery_source: Optional[str] = None
