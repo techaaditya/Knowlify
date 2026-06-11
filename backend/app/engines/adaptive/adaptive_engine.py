@@ -34,6 +34,146 @@ def get_or_create_mastery(db: Session, student_id: str, concept_id: str) -> mode
     return record
 
 
+def parse_student_model_time(value: Optional[str]) -> Optional[datetime]:
+    if not value:
+        return None
+
+    try:
+        return datetime.strptime(value, "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
+    except ValueError:
+        return None
+
+
+def prerequisites_from_graph_data(graph_data: dict) -> dict[str, list[str]]:
+    """
+    Build prerequisite mappings from Context Engine graph data.
+
+    Supports both graph node `prerequisites` fields and edge lists shaped like
+    {"from": "Limits", "to": "Derivatives"}.
+    """
+    prerequisites: dict[str, set[str]] = {}
+
+    for node in graph_data.get("nodes", []):
+        concept_id = node.get("id")
+        if not concept_id:
+            continue
+        prerequisites.setdefault(concept_id, set())
+        for prereq_id in node.get("prerequisites", []):
+            prerequisites[concept_id].add(prereq_id)
+
+    for edge in graph_data.get("edges", []):
+        prereq_id = edge.get("from")
+        concept_id = edge.get("to")
+        if prereq_id and concept_id:
+            prerequisites.setdefault(concept_id, set()).add(prereq_id)
+            prerequisites.setdefault(prereq_id, set())
+
+    return {concept_id: sorted(prereq_ids) for concept_id, prereq_ids in prerequisites.items()}
+
+
+def persistent_misconception(student_profile: Optional[dict], concept_id: str) -> Optional[str]:
+    if not student_profile:
+        return None
+
+    topic_data = student_profile.get("topics", {}).get(concept_id, {})
+    for error_type, count in topic_data.get("error_types", {}).items():
+        if count >= 3:
+            return error_type
+    return None
+
+
+def sync_from_student_model(
+    db: Session,
+    student_profile: dict,
+    prerequisites_by_concept: Optional[dict[str, list[str]]] = None,
+) -> list[models.MasteryRecord]:
+    """
+    Copy mastery from the Cognitive Student Model into Adaptive Engine records.
+
+    The Student Model stores mastery as 0-100 percentages. The Adaptive Engine
+    stores mastery as 0-1 floats, so this function converts the scale.
+    """
+    prerequisites_by_concept = prerequisites_by_concept or {}
+    student_id = student_profile["student_id"]
+    student = db.query(models.Student).filter(models.Student.id == student_id).first()
+    if not student:
+        student = models.Student(id=student_id, name=student_profile.get("name", student_id))
+        db.add(student)
+    else:
+        student.name = student_profile.get("name", student.name)
+
+    concept_ids = set(student_profile.get("topics", {}).keys())
+    concept_ids.update(prerequisites_by_concept.keys())
+    for prereqs in prerequisites_by_concept.values():
+        concept_ids.update(prereqs)
+
+    concepts: dict[str, models.Concept] = {}
+    for concept_id in concept_ids:
+        concept = db.query(models.Concept).filter(models.Concept.id == concept_id).first()
+        if not concept:
+            concept = models.Concept(
+                id=concept_id,
+                name=concept_id,
+                description=f"Concept synced from the Knowlify student model: {concept_id}",
+            )
+            db.add(concept)
+        concepts[concept_id] = concept
+    db.flush()
+
+    for concept_id, prereq_ids in prerequisites_by_concept.items():
+        concepts[concept_id].prerequisites = [concepts[prereq_id] for prereq_id in prereq_ids]
+
+    synced_records = []
+    for concept_id, topic_data in student_profile.get("topics", {}).items():
+        record = get_or_create_mastery(db, student_id, concept_id)
+        record.mastery = round(clamp(topic_data.get("mastery_score", 0) / 100), 3)
+        record.last_practiced = parse_student_model_time(topic_data.get("last_revised"))
+        synced_records.append(record)
+
+    db.commit()
+    return synced_records
+
+
+def sync_from_student_model_and_graph(
+    db: Session,
+    student_profile: dict,
+    graph_data: dict,
+) -> list[models.MasteryRecord]:
+    return sync_from_student_model(
+        db,
+        student_profile,
+        prerequisites_by_concept=prerequisites_from_graph_data(graph_data),
+    )
+
+
+def record_attempt_from_student_model_payload(
+    db: Session,
+    student_profile: dict,
+    attempt_payload: dict,
+    confidence: int = 3,
+    difficulty: str = "medium",
+) -> tuple[models.MasteryRecord, float]:
+    """
+    Mirror a Student Model quiz attempt into Adaptive Engine records.
+
+    This lets `/api/attempt` update both engines later without changing the
+    Student Model class itself. The route can pass the same payload it already
+    sends to the cognitive engine.
+    """
+    sync_from_student_model(db, student_profile)
+    attempt = schemas.AttemptInput(
+        student_id=student_profile["student_id"],
+        concept_id=attempt_payload["topic_name"],
+        question_id=attempt_payload["question_id"],
+        correct=attempt_payload["is_correct"],
+        time_spent=attempt_payload.get("time_taken", 0),
+        hint_used=attempt_payload.get("hints_used", 0) > 0,
+        confidence=confidence,
+        difficulty=difficulty,
+    )
+    return record_attempt(db, attempt)
+
+
 def calculate_mastery_change(attempt: schemas.AttemptInput) -> float:
     """Explainable scoring rule for the Knowlify adaptive learning MVP."""
     if attempt.correct:
@@ -119,7 +259,12 @@ def weakest_prerequisite(
     return weakest
 
 
-def get_recommendation(db: Session, student_id: str, concept_id: str) -> schemas.Recommendation:
+def get_recommendation(
+    db: Session,
+    student_id: str,
+    concept_id: str,
+    student_profile: Optional[dict] = None,
+) -> schemas.Recommendation:
     student = db.query(models.Student).filter(models.Student.id == student_id).first()
     concept = db.query(models.Concept).filter(models.Concept.id == concept_id).first()
     if not student:
@@ -145,6 +290,25 @@ def get_recommendation(db: Session, student_id: str, concept_id: str) -> schemas
                 f"{recommended.name} is a prerequisite for {concept.name}, "
                 f"but the student's mastery is only {weak_prerequisite.mastery:.2f}."
             ),
+            mastery_source="Adaptive mastery synced from Student Model mastery_score",
+        )
+
+    misconception = persistent_misconception(student_profile, concept_id)
+    if misconception:
+        return schemas.Recommendation(
+            student_id=student_id,
+            concept_id=concept_id,
+            concept_name=concept.name,
+            current_mastery=mastery_record.mastery,
+            forgetting_risk=risk,
+            next_action="reteach",
+            recommended_concept=concept_id,
+            reason=(
+                f"The student repeatedly makes '{misconception}' errors in {concept.name}. "
+                "Recommend targeted reteaching before more practice."
+            ),
+            misconception=misconception,
+            mastery_source="Adaptive mastery synced from Student Model mastery_score",
         )
 
     if risk == "high":
@@ -172,7 +336,41 @@ def get_recommendation(db: Session, student_id: str, concept_id: str) -> schemas
         next_action=next_action,
         recommended_concept=None,
         reason=reason,
+        mastery_source="Adaptive mastery synced from Student Model mastery_score",
     )
+
+
+def shared_mastery_snapshot(db: Session, student_profile: dict) -> dict:
+    """
+    Return one combined view of cognitive and adaptive mastery records.
+
+    This is a bridge toward a future shared mastery table without changing the
+    existing Student Model Engine.
+    """
+    sync_from_student_model(db, student_profile)
+    adaptive_records = {
+        record.concept_id: record
+        for record in db.query(models.MasteryRecord)
+        .filter(models.MasteryRecord.student_id == student_profile["student_id"])
+        .all()
+    }
+
+    concepts = {}
+    for concept_id, topic_data in student_profile.get("topics", {}).items():
+        adaptive_record = adaptive_records.get(concept_id)
+        concepts[concept_id] = {
+            "student_model_mastery_score": topic_data.get("mastery_score", 0),
+            "adaptive_mastery": adaptive_record.mastery if adaptive_record else 0,
+            "last_practiced": adaptive_record.last_practiced if adaptive_record else None,
+            "status": topic_data.get("status"),
+            "error_types": topic_data.get("error_types", {}),
+        }
+
+    return {
+        "student_id": student_profile["student_id"],
+        "name": student_profile.get("name"),
+        "concepts": concepts,
+    }
 
 
 def get_student_mastery(db: Session, student_id: str) -> list[schemas.MasterySummary]:
