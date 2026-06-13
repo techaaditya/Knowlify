@@ -11,3 +11,5 @@ class User(Base):
     name = Column(String)
     role = Column(String, default="student")
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+   
