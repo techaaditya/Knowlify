@@ -4,8 +4,9 @@
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from .routers import documents, chat, quiz, analytics, adaptive
+
 from .config import settings
+from .routers import adaptive, analytics, chat, documents, quiz
 
 app = FastAPI(title=settings.APP_NAME)
 
@@ -25,13 +26,15 @@ app.include_router(quiz.router)
 app.include_router(analytics.router)
 app.include_router(adaptive.router)
 
+
 @app.get("/")
 async def root():
     return {
         "message": "Welcome to the Knowlify ACLS Engine API server",
         "docs_url": "/docs",
-        "status": "active"
+        "status": "active",
     }
+
 
 if __name__ == "__main__":
     uvicorn.run("app.main:app", host=settings.HOST, port=settings.PORT, reload=True)

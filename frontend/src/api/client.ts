@@ -23,6 +23,8 @@ export interface AdaptiveRecommendation {
   next_action: string;
   recommended_concept: string | null;
   reason: string;
+  misconception?: string | null;
+  mastery_source?: string;
 }
 
 export const getAdaptiveDemoRecommendation = async () => {

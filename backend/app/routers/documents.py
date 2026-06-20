@@ -4,7 +4,6 @@
 import os
 import json
 from fastapi import APIRouter, HTTPException
-from ..engines.context.pipeline import run_engine_prototype
 
 router = APIRouter(prefix="/api", tags=["documents"])
 
@@ -13,6 +12,10 @@ CACHE_FILE = os.path.join(_HERE, "..", "extracted_graph_cache.json")
 
 def generate_pdf_graph(pdf_path: str):
     try:
+        # Import lazily so the API can start even if optional PDF/NLP
+        # dependencies are not installed for an adaptive-engine demo.
+        from ..engines.context.pipeline import run_engine_prototype
+
         # Run the engine prototype
         G, topics_list = run_engine_prototype(pdf_path)
         
