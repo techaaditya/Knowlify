@@ -82,6 +82,52 @@ def persistent_misconception(student_profile: Optional[dict], concept_id: str) -
     return None
 
 
+def suggested_activity_for_action(next_action: str, misconception: Optional[str] = None) -> str:
+    """Map the engine decision to a simple learning activity for the frontend."""
+    if next_action == "prerequisite_review":
+        return "Review the weakest prerequisite concept before continuing."
+    if next_action == "review":
+        return "Do a short spaced-review quiz to refresh the concept."
+    if next_action == "move_forward":
+        return "Move to the next connected concept in the learning path."
+    if next_action == "harder_practice":
+        return "Try harder practice questions with fewer hints."
+    if next_action == "explanation_then_practice":
+        return "Read a guided explanation, then solve medium practice questions."
+    if misconception:
+        return f"Reteach the misconception area: {misconception}."
+    return "Reteach the core concept with worked examples."
+
+
+def prerequisite_strength(db: Session, student_id: str, concept: models.Concept) -> float:
+    if not concept.prerequisites:
+        return 1.0
+
+    prerequisite_masteries = [
+        get_or_create_mastery(db, student_id, prerequisite.id).mastery
+        for prerequisite in concept.prerequisites
+    ]
+    return round(sum(prerequisite_masteries) / len(prerequisite_masteries), 3)
+
+
+def calculate_readiness_score(
+    mastery: float,
+    prerequisite_mastery: float,
+    risk: str,
+    misconception: Optional[str],
+) -> float:
+    """
+    Combine the major adaptive signals into one explainable readiness score.
+
+    The score is intentionally simple for the MVP: mastery and prerequisite
+    strength raise readiness; forgetting risk and misconceptions reduce it.
+    """
+    risk_penalty = {"low": 0.0, "medium": 0.10, "high": 0.20}.get(risk, 0.0)
+    misconception_penalty = 0.20 if misconception else 0.0
+    score = (mastery * 0.65) + (prerequisite_mastery * 0.35)
+    return round(clamp(score - risk_penalty - misconception_penalty), 3)
+
+
 def sync_from_student_model(
     db: Session,
     student_profile: dict,
@@ -143,6 +189,28 @@ def sync_from_student_model_and_graph(
         db,
         student_profile,
         prerequisites_by_concept=prerequisites_from_graph_data(graph_data),
+    )
+
+
+def generate_recommendation_from_student_profile(
+    db: Session,
+    student_profile: dict,
+    concept_id: str,
+    graph_data: dict,
+) -> schemas.Recommendation:
+    """
+    Complete integration point for Student Model + Context Graph + Adaptive.
+
+    Student Model provides mastery, last practice, and misconceptions. Context
+    graph provides prerequisites. Adaptive combines both and returns the next
+    best learning action.
+    """
+    sync_from_student_model_and_graph(db, student_profile, graph_data)
+    return get_recommendation(
+        db,
+        student_id=student_profile["student_id"],
+        concept_id=concept_id,
+        student_profile=student_profile,
     )
 
 
@@ -274,34 +342,47 @@ def get_recommendation(
 
     mastery_record = get_or_create_mastery(db, student_id, concept_id)
     risk = forgetting_risk(mastery_record.mastery, mastery_record.last_practiced)
+    misconception = persistent_misconception(student_profile, concept_id)
+    prereq_strength = prerequisite_strength(db, student_id, concept)
+    readiness_score = calculate_readiness_score(
+        mastery_record.mastery,
+        prereq_strength,
+        risk,
+        misconception,
+    )
     weak_prerequisite = weakest_prerequisite(db, student_id, concept)
 
     if weak_prerequisite:
         recommended = weak_prerequisite.concept
+        next_action = "prerequisite_review"
         return schemas.Recommendation(
             student_id=student_id,
             concept_id=concept_id,
             concept_name=concept.name,
             current_mastery=mastery_record.mastery,
             forgetting_risk=risk,
-            next_action="prerequisite_review",
+            next_action=next_action,
             recommended_concept=recommended.id,
             reason=(
                 f"{recommended.name} is a prerequisite for {concept.name}, "
                 f"but the student's mastery is only {weak_prerequisite.mastery:.2f}."
             ),
             mastery_source="Adaptive mastery synced from Student Model mastery_score",
+            readiness_score=readiness_score,
+            suggested_activity=suggested_activity_for_action(next_action),
+            weakest_prerequisite=recommended.id,
+            prerequisite_source="Context Engine graph",
         )
 
-    misconception = persistent_misconception(student_profile, concept_id)
     if misconception:
+        next_action = "reteach"
         return schemas.Recommendation(
             student_id=student_id,
             concept_id=concept_id,
             concept_name=concept.name,
             current_mastery=mastery_record.mastery,
             forgetting_risk=risk,
-            next_action="reteach",
+            next_action=next_action,
             recommended_concept=concept_id,
             reason=(
                 f"The student repeatedly makes '{misconception}' errors in {concept.name}. "
@@ -309,6 +390,9 @@ def get_recommendation(
             ),
             misconception=misconception,
             mastery_source="Adaptive mastery synced from Student Model mastery_score",
+            readiness_score=readiness_score,
+            suggested_activity=suggested_activity_for_action(next_action, misconception),
+            prerequisite_source="Context Engine graph",
         )
 
     if risk == "high":
@@ -337,6 +421,9 @@ def get_recommendation(
         recommended_concept=None,
         reason=reason,
         mastery_source="Adaptive mastery synced from Student Model mastery_score",
+        readiness_score=readiness_score,
+        suggested_activity=suggested_activity_for_action(next_action),
+        prerequisite_source="Context Engine graph",
     )
 
 

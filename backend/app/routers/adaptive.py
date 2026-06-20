@@ -65,16 +65,11 @@ async def demo_recommendation(x_adaptive_api_key: str | None = Header(default=No
 
         db = SessionLocal()
         try:
-            adaptive_engine.sync_from_student_model_and_graph(
+            recommendation = adaptive_engine.generate_recommendation_from_student_profile(
                 db,
                 student_profile,
+                "Derivatives",
                 CALCULUS_GRAPH_DATA,
-            )
-            recommendation = adaptive_engine.get_recommendation(
-                db,
-                student_id="S001",
-                concept_id="Derivatives",
-                student_profile=student_profile,
             )
 
             return {
@@ -89,6 +84,10 @@ async def demo_recommendation(x_adaptive_api_key: str | None = Header(default=No
                 "recommended_concept": recommendation.recommended_concept,
                 "reason": recommendation.reason,
                 "misconception": recommendation.misconception,
+                "readiness_score": recommendation.readiness_score,
+                "suggested_activity": recommendation.suggested_activity,
+                "weakest_prerequisite": recommendation.weakest_prerequisite,
+                "prerequisite_source": recommendation.prerequisite_source,
                 "mastery_source": "Cognitive Student Model mastery_score",
             }
         finally:

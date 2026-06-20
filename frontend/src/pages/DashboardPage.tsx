@@ -124,6 +124,11 @@ export const DashboardPage: React.FC = () => {
               {adaptiveRecommendation.mastery_source && (
                 <p className="text-theme-muted">{adaptiveRecommendation.mastery_source}</p>
               )}
+              {adaptiveRecommendation.readiness_score !== undefined && adaptiveRecommendation.readiness_score !== null && (
+                <p className="text-theme-muted">
+                  Readiness: {(adaptiveRecommendation.readiness_score * 100).toFixed(0)}%
+                </p>
+              )}
             </div>
             <div className="space-y-2">
               <p className="text-theme-muted uppercase tracking-wider text-[10px]">Next Action</p>
@@ -133,10 +138,19 @@ export const DashboardPage: React.FC = () => {
               <p className="text-theme-muted">
                 Recommended: {adaptiveRecommendation.recommended_concept || 'None'}
               </p>
+              {adaptiveRecommendation.weakest_prerequisite && (
+                <p className="text-theme-muted">Weakest prerequisite: {adaptiveRecommendation.weakest_prerequisite}</p>
+              )}
+              {adaptiveRecommendation.prerequisite_source && (
+                <p className="text-theme-muted">{adaptiveRecommendation.prerequisite_source}</p>
+              )}
             </div>
             <div className="space-y-2">
               <p className="text-theme-muted uppercase tracking-wider text-[10px]">Reason</p>
               <p className="text-theme-text leading-relaxed">{adaptiveRecommendation.reason}</p>
+              {adaptiveRecommendation.suggested_activity && (
+                <p className="text-theme-text leading-relaxed">{adaptiveRecommendation.suggested_activity}</p>
+              )}
               <p className="text-theme-muted">Forgetting risk: {adaptiveRecommendation.forgetting_risk}</p>
             </div>
           </div>

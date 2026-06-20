@@ -25,6 +25,10 @@ export interface AdaptiveRecommendation {
   reason: string;
   misconception?: string | null;
   mastery_source?: string;
+  readiness_score?: number | null;
+  suggested_activity?: string | null;
+  weakest_prerequisite?: string | null;
+  prerequisite_source?: string | null;
 }
 
 export const getAdaptiveDemoRecommendation = async () => {
