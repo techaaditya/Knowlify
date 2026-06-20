@@ -4,8 +4,119 @@ import { MasteryRadar } from '../components/Dashboard/MasteryRadar';
 import { useUserStore } from '../store/userStore';
 
 const actionLabel = (value?: string | null) => value ? value.split('_').join(' ') : 'None';
-
 const compactPercent = (value: number) => `${Math.round(value)}%`;
+const clampPercent = (value: number) => Math.min(100, Math.max(0, value));
+
+const LearningVelocityChart: React.FC<{ points: DashboardEngineSummary['learning_velocity'] }> = ({ points }) => {
+  const width = 520;
+  const height = 210;
+  const padding = 34;
+  const chartWidth = width - padding * 2;
+  const chartHeight = height - padding * 2;
+  const coordinates = points.map((point, index) => {
+    const x = points.length === 1 ? width / 2 : padding + (index / (points.length - 1)) * chartWidth;
+    const y = padding + chartHeight - (clampPercent(point.cumulative_accuracy) / 100) * chartHeight;
+    return { ...point, x, y };
+  });
+  const path = coordinates.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`).join(' ');
+
+  return (
+    <div className="velocity-chart" aria-label="Learning velocity line chart">
+      <svg viewBox={`0 0 ${width} ${height}`} role="img">
+        {[0, 25, 50, 75, 100].map((tick) => {
+          const y = padding + chartHeight - (tick / 100) * chartHeight;
+          return (
+            <g key={tick}>
+              <line className="chart-grid-line" x1={padding} x2={width - padding} y1={y} y2={y} />
+              <text className="chart-axis-label" x={8} y={y + 4}>{tick}%</text>
+            </g>
+          );
+        })}
+        <path className="velocity-area" d={`${path} L ${coordinates[coordinates.length - 1]?.x || padding} ${height - padding} L ${coordinates[0]?.x || padding} ${height - padding} Z`} />
+        <path className="velocity-line" d={path} />
+        {coordinates.map((point) => (
+          <g key={point.step}>
+            <circle className="velocity-point" cx={point.x} cy={point.y} r="5" />
+            <text className="chart-axis-label" x={point.x} y={height - 10} textAnchor="middle">A{point.step}</text>
+          </g>
+        ))}
+      </svg>
+      <div className="chart-caption">
+        {points.map((point) => (
+          <span key={point.step}>
+            Attempt {point.step}: {point.cumulative_accuracy}% ({point.topic})
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const WeakAreaChart: React.FC<{ areas: DashboardEngineSummary['weak_areas'] }> = ({ areas }) => (
+  <div className="weak-chart">
+    {areas.slice(0, 4).map((area, index) => (
+      <div key={area.concept_id} className="weak-chart-row">
+        <div className="weak-chart-label">
+          <strong>{index + 1}. {area.concept_id}</strong>
+          <span>{area.reason}</span>
+        </div>
+        <div className="weak-chart-track">
+          <div className="weak-chart-fill" style={{ width: `${clampPercent(area.mastery)}%` }} />
+          <span>{area.mastery}%</span>
+        </div>
+      </div>
+    ))}
+  </div>
+);
+
+const HeatmapChart: React.FC<{ days: DashboardEngineSummary['study_heatmap'] }> = ({ days }) => (
+  <div className="study-heatmap-grid">
+    {days.map((day) => (
+      <div
+        key={day.date}
+        title={`${day.date}: ${day.attempts} attempts`}
+        className={`heatmap-cell intensity-${Math.min(4, Math.max(1, day.intensity))}`}
+      >
+        <span>{day.attempts}</span>
+        <small>{new Date(day.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</small>
+      </div>
+    ))}
+  </div>
+);
+
+const ContextGraphChart: React.FC<{ graph: DashboardEngineSummary['context_graph'] }> = ({ graph }) => {
+  const bottlenecks = graph.bottlenecks.slice(0, 3);
+
+  return (
+    <div className="context-graph-chart">
+      <div className="context-graph-stats">
+        <div>
+          <span>Nodes</span>
+          <strong>{graph.node_count}</strong>
+        </div>
+        <div>
+          <span>Edges</span>
+          <strong>{graph.edge_count}</strong>
+        </div>
+        <div>
+          <span>Covered</span>
+          <strong>{graph.covered_topics}</strong>
+        </div>
+      </div>
+      <div className="mini-graph" aria-label="Context graph bottleneck preview">
+        {bottlenecks.length ? bottlenecks.map((item) => (
+          <div key={item.concept_id} className="mini-graph-row">
+            <div className="mini-node weak">{item.weak_prerequisites.join(', ')}</div>
+            <div className="mini-edge" />
+            <div className="mini-node blocked">{item.concept_id}</div>
+          </div>
+        )) : (
+          <div className="mini-node strong">No blocked concepts</div>
+        )}
+      </div>
+    </div>
+  );
+};
 
 export const DashboardPage: React.FC = () => {
   const studentId = useUserStore((state) => state.studentId);
@@ -46,7 +157,6 @@ export const DashboardPage: React.FC = () => {
 
   const summary = dashboard.summary;
   const recommendation = dashboard.adaptive_recommendation;
-  const maxVelocity = Math.max(...dashboard.learning_velocity.map((point) => point.cumulative_accuracy), 100);
 
   return (
     <div className="space-y-6">
@@ -98,22 +208,7 @@ export const DashboardPage: React.FC = () => {
             <h3>Learning Velocity</h3>
             <span className="badge">Accuracy Over Attempts</span>
           </div>
-          <div className="space-y-3">
-            {dashboard.learning_velocity.map((point) => (
-              <div key={point.step} className="space-y-1">
-                <div className="flex justify-between text-xs text-theme-secondary">
-                  <span>Attempt {point.step} - {point.topic}</span>
-                  <span>{point.cumulative_accuracy}%</span>
-                </div>
-                <div className="w-full bg-[#F2EFE9] h-2 rounded-full overflow-hidden border border-theme-border/30">
-                  <div
-                    className="h-full rounded-full bg-mastery-strong-border"
-                    style={{ width: `${Math.min(100, (point.cumulative_accuracy / maxVelocity) * 100)}%` }}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
+          <LearningVelocityChart points={dashboard.learning_velocity} />
         </div>
       </div>
 
@@ -159,17 +254,7 @@ export const DashboardPage: React.FC = () => {
           <div className="card-header">
             <h3>Weak Areas Ranking</h3>
           </div>
-          <div className="space-y-3">
-            {dashboard.weak_areas.slice(0, 4).map((area, index) => (
-              <div key={area.concept_id} className="recommendation-box">
-                <div className="flex justify-between gap-3">
-                  <strong>{index + 1}. {area.concept_id}</strong>
-                  <span>{area.mastery}%</span>
-                </div>
-                <p>{area.reason}</p>
-              </div>
-            ))}
-          </div>
+          <WeakAreaChart areas={dashboard.weak_areas} />
         </div>
 
         <div className="card">
@@ -194,23 +279,7 @@ export const DashboardPage: React.FC = () => {
           <div className="card-header">
             <h3>Study Heatmap</h3>
           </div>
-          <div className="flex flex-wrap gap-2">
-            {dashboard.study_heatmap.map((day) => (
-              <div
-                key={day.date}
-                title={`${day.date}: ${day.attempts} attempts`}
-                className={`w-9 h-9 rounded border border-theme-border flex items-center justify-center text-[10px] ${
-                  day.intensity >= 3
-                    ? 'bg-mastery-strong-bg text-mastery-strong-text'
-                    : day.intensity === 2
-                      ? 'bg-mastery-medium-bg text-mastery-medium-text'
-                      : 'bg-mastery-weak-bg text-mastery-weak-text'
-                }`}
-              >
-                {day.attempts}
-              </div>
-            ))}
-          </div>
+          <HeatmapChart days={dashboard.study_heatmap} />
           <p className="text-xs text-theme-muted mt-3">Each square shows attempts on a practice day.</p>
         </div>
       </div>
@@ -220,20 +289,7 @@ export const DashboardPage: React.FC = () => {
           <div className="card-header">
             <h3>Context Graph Coverage</h3>
           </div>
-          <div className="grid grid-cols-3 gap-3 text-center text-xs">
-            <div className="metric-item">
-              <span className="metric-label">Nodes</span>
-              <span className="metric-value">{dashboard.context_graph.node_count}</span>
-            </div>
-            <div className="metric-item">
-              <span className="metric-label">Edges</span>
-              <span className="metric-value">{dashboard.context_graph.edge_count}</span>
-            </div>
-            <div className="metric-item">
-              <span className="metric-label">Covered</span>
-              <span className="metric-value">{dashboard.context_graph.covered_topics}</span>
-            </div>
-          </div>
+          <ContextGraphChart graph={dashboard.context_graph} />
           {dashboard.context_graph.bottlenecks.length > 0 && (
             <div className="mt-4 space-y-2 text-xs">
               {dashboard.context_graph.bottlenecks.map((item) => (
