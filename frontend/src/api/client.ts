@@ -37,3 +37,66 @@ export const getAdaptiveDemoRecommendation = async () => {
   });
   return response.data;
 };
+
+export interface DashboardEngineSummary {
+  summary: {
+    student_id: string;
+    student_name: string;
+    average_mastery: number;
+    accuracy_rate: number;
+    total_attempts: number;
+    topics_attempted: number;
+    average_time_seconds: number;
+    hint_dependency: number;
+    misconception_count: number;
+  };
+  mastery_distribution: Record<string, number>;
+  weak_areas: Array<{
+    concept_id: string;
+    mastery: number;
+    status: string;
+    error_count: number;
+    hints_used: number;
+    blocks: string[];
+    priority_score: number;
+    reason: string;
+  }>;
+  misconceptions: Array<{
+    concept_id: string;
+    error_type: string;
+    count: number;
+    severity: string;
+  }>;
+  learning_velocity: Array<{
+    step: number;
+    date: string;
+    topic: string;
+    cumulative_accuracy: number;
+    topic_accuracy: number;
+  }>;
+  study_heatmap: Array<{
+    date: string;
+    attempts: number;
+    intensity: number;
+  }>;
+  context_graph: {
+    node_count: number;
+    edge_count: number;
+    covered_topics: number;
+    bottlenecks: Array<{ concept_id: string; weak_prerequisites: string[] }>;
+    source: string;
+  };
+  adaptive_recommendation: AdaptiveRecommendation | null;
+  generative_suggestions: Array<{
+    type: string;
+    title: string;
+    target_concept: string | null;
+    reason: string;
+  }>;
+  engine_connections: string[];
+}
+
+export const getDashboardEngineSummary = async (studentId: string) => {
+  const response = await client.get<DashboardEngineSummary>(`/api/dashboard/student/${studentId}`);
+  return response.data;
+};

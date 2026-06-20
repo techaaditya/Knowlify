@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import settings
-from .routers import adaptive, analytics, chat, documents, quiz
+from .routers import adaptive, analytics, chat, dashboard, documents, quiz
 
 app = FastAPI(title=settings.APP_NAME)
 
@@ -25,6 +25,7 @@ app.include_router(chat.router)
 app.include_router(quiz.router)
 app.include_router(analytics.router)
 app.include_router(adaptive.router)
+app.include_router(dashboard.router)
 
 
 @app.get("/")
