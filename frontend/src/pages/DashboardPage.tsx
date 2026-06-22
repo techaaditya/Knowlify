@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { DashboardEngineSummary, getDashboardEngineSummary } from '../api/client';
 import { MasteryRadar } from '../components/Dashboard/MasteryRadar';
 import { useUserStore } from '../store/userStore';
+import { useWorkspaceStore } from '../store/workspaceStore';
 
 const actionLabel = (value?: string | null) => value ? value.split('_').join(' ') : 'None';
 const compactPercent = (value: number) => `${Math.round(value)}%`;
@@ -120,13 +121,14 @@ const ContextGraphChart: React.FC<{ graph: DashboardEngineSummary['context_graph
 
 export const DashboardPage: React.FC = () => {
   const studentId = useUserStore((state) => state.studentId);
+  const workspace = useWorkspaceStore((state) => state.workspace);
   const [dashboard, setDashboard] = useState<DashboardEngineSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     setLoading(true);
-    getDashboardEngineSummary(studentId)
+    getDashboardEngineSummary(studentId, workspace?.id)
       .then((data) => {
         setDashboard(data);
         setError(null);
@@ -137,7 +139,7 @@ export const DashboardPage: React.FC = () => {
       .finally(() => {
         setLoading(false);
       });
-  }, [studentId]);
+  }, [studentId, workspace?.id]);
 
   const masteryBars = useMemo(() => {
     if (!dashboard) return [];

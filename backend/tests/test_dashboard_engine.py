@@ -1,4 +1,5 @@
 from app.engines.dashboard import dashboard_engine
+from app.routers.dashboard import choose_recommendation_concept, graph_has_data
 
 
 def sample_student():
@@ -85,3 +86,20 @@ def test_dashboard_builds_velocity_heatmap_and_suggestions():
     assert dashboard["study_heatmap"][0]["attempts"] == 2
     assert dashboard["context_graph"]["edge_count"] == 2
     assert dashboard["generative_suggestions"]
+
+
+def test_dashboard_uses_lowest_mastery_concept_from_context_graph():
+    student = sample_student()
+    student["topics"]["Organic Chemistry"] = {
+        "mastery_score": 8,
+        "status": "weak",
+        "hints_used": 4,
+        "error_types": {"Mechanism error": 2},
+    }
+    graph = {
+        "nodes": [{"id": "Derivatives"}, {"id": "Organic Chemistry"}],
+        "edges": [],
+    }
+
+    assert graph_has_data(graph) is True
+    assert choose_recommendation_concept(student, graph) == "Organic Chemistry"

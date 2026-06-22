@@ -96,7 +96,9 @@ export interface DashboardEngineSummary {
   engine_connections: string[];
 }
 
-export const getDashboardEngineSummary = async (studentId: string) => {
-  const response = await client.get<DashboardEngineSummary>(`/api/dashboard/student/${studentId}`);
+export const getDashboardEngineSummary = async (studentId: string, workspaceId?: string) => {
+  const response = await client.get<DashboardEngineSummary>(`/api/dashboard/student/${studentId}`, {
+    params: workspaceId ? { workspace_id: workspaceId } : undefined,
+  });
   return response.data;
 };
