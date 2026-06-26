@@ -17,7 +17,6 @@ class QuizAttemptCreate(BaseModel):
 class QuizGenerateRequest(BaseModel):
     workspace_id: str
     concept_id: str
-    count: int = Field(default=3, ge=1, le=10)
 
 
 class GeneratedQuizAnswer(BaseModel):

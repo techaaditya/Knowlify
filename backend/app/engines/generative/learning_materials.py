@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from itertools import cycle
+import random
 
 
 def _concepts(graph_data: dict) -> list[dict]:
@@ -21,16 +21,18 @@ def _description(node: dict) -> str:
     return node.get("description") or f"A key concept extracted from the learner's uploaded sources: {_name(node)}."
 
 
-def _choices(correct: str, alternatives: list[str]) -> list[str]:
+def _choices(correct: str, alternatives: list[str], seed: str) -> list[str]:
     values = [correct] + [item for item in alternatives if item and item != correct]
     unique = list(dict.fromkeys(values))
     while len(unique) < 4:
         unique.append("This statement does not describe the selected concept.")
-    return unique[:4]
+    values = unique[:4]
+    random.Random(seed).shuffle(values)
+    return values
 
 
-def generate_quiz_questions(graph_data: dict, concept_id: str, count: int = 3) -> list[dict]:
-    """Create explainable multiple-choice questions from the Context Engine graph."""
+def generate_quiz_questions(graph_data: dict, concept_id: str) -> list[dict]:
+    """Create a varied concept quiz from the Context Engine graph."""
     concept = find_concept(graph_data, concept_id)
     if not concept:
         raise ValueError("Concept is not part of the workspace graph.")
@@ -49,6 +51,14 @@ def generate_quiz_questions(graph_data: dict, concept_id: str, count: int = 3) -
             "explanation": description,
         }
     ]
+    questions.append(
+        {
+            "prompt": f"Which concept from the selected sources matches this description: {description}",
+            "correct_answer": _name(concept),
+            "alternatives": [_name(node) for node in other_concepts],
+            "explanation": f"The description identifies {_name(concept)} in the workspace graph.",
+        }
+    )
 
     if prerequisites:
         prerequisite = prerequisites[0]
@@ -72,21 +82,15 @@ def generate_quiz_questions(graph_data: dict, concept_id: str, count: int = 3) -
             }
         )
 
-    # Small graphs may only have one relationship. Repeat a valid format rather
-    # than inventing claims outside the uploaded learning material.
-    result = []
-    for item in cycle(questions):
-        result.append(
-            {
-                "prompt": item["prompt"],
-                "options": _choices(item["correct_answer"], item["alternatives"]),
-                "correct_answer": item["correct_answer"],
-                "explanation": item["explanation"],
-            }
-        )
-        if len(result) >= max(1, min(count, 10)):
-            break
-    return result
+    return [
+        {
+            "prompt": item["prompt"],
+            "options": _choices(item["correct_answer"], item["alternatives"], f"{concept_id}-{index}"),
+            "correct_answer": item["correct_answer"],
+            "explanation": item["explanation"],
+        }
+        for index, item in enumerate(questions, start=1)
+    ]
 
 
 def generate_flashcards(graph_data: dict, concept_id: str, count: int = 4) -> list[dict]:

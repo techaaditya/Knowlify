@@ -77,7 +77,7 @@ async def generate_quiz(payload: QuizGenerateRequest, app_db: Session = Depends(
         raise HTTPException(status_code=409, detail="Select processed sources before generating a quiz.")
 
     try:
-        questions = generate_quiz_questions(graph_data, payload.concept_id, payload.count)
+        questions = generate_quiz_questions(graph_data, payload.concept_id)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
@@ -91,7 +91,12 @@ async def generate_quiz(payload: QuizGenerateRequest, app_db: Session = Depends(
             "prompt": question["prompt"],
             "options": question["options"],
         })
-    return {"concept_id": payload.concept_id, "questions": public_questions}
+    return {
+        "concept_id": payload.concept_id,
+        "title": "Concept Understanding Quiz",
+        "instructions": "Answer every question. Each question checks a different part of the selected concept and its place in the learning graph.",
+        "questions": public_questions,
+    }
 
 
 @router.post("/quiz/answer")

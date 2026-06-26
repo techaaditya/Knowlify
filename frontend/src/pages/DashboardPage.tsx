@@ -119,7 +119,11 @@ const ContextGraphChart: React.FC<{ graph: DashboardEngineSummary['context_graph
   );
 };
 
-export const DashboardPage: React.FC = () => {
+interface DashboardPageProps {
+  onLearningAction: (tab: 'graph' | 'quiz' | 'flashcards', conceptId?: string | null) => void;
+}
+
+export const DashboardPage: React.FC<DashboardPageProps> = ({ onLearningAction }) => {
   const studentId = useUserStore((state) => state.studentId);
   const workspace = useWorkspaceStore((state) => state.workspace);
   const [dashboard, setDashboard] = useState<DashboardEngineSummary | null>(null);
@@ -159,6 +163,7 @@ export const DashboardPage: React.FC = () => {
 
   const summary = dashboard.summary;
   const recommendation = dashboard.adaptive_recommendation;
+  const recommendedConcept = recommendation?.recommended_concept || recommendation?.concept_id;
 
   return (
     <div className="space-y-6">
@@ -220,6 +225,7 @@ export const DashboardPage: React.FC = () => {
           <span className="badge">{recommendation?.prerequisite_source || dashboard.context_graph.source}</span>
         </div>
         {recommendation ? (
+          <>
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 text-xs">
             <div className="space-y-2">
               <p className="text-theme-muted uppercase tracking-wider text-[10px]">Current Concept</p>
@@ -246,6 +252,13 @@ export const DashboardPage: React.FC = () => {
               <p className="text-theme-muted">Forgetting risk: {recommendation.forgetting_risk}</p>
             </div>
           </div>
+          <div className="flex flex-wrap gap-3 mt-5">
+            <button type="button" className="btn btn-secondary" onClick={() => onLearningAction('graph', recommendedConcept)}>Open Explanation</button>
+            <button type="button" className="btn btn-secondary" onClick={() => onLearningAction('flashcards', recommendedConcept)}>Generate Flashcards</button>
+            <button type="button" className="btn btn-primary" onClick={() => onLearningAction('quiz', recommendedConcept)}>Start Concept Quiz</button>
+            {recommendation.weakest_prerequisite && <button type="button" className="btn btn-secondary" onClick={() => onLearningAction('flashcards', recommendation.weakest_prerequisite)}>Review Prerequisite</button>}
+          </div>
+          </>
         ) : (
           <p className="text-xs text-theme-muted">No adaptive recommendation available.</p>
         )}
@@ -313,6 +326,9 @@ export const DashboardPage: React.FC = () => {
                 <strong>{suggestion.title}</strong>
                 <p>{suggestion.reason}</p>
                 <p className="text-theme-muted">Target: {suggestion.target_concept || 'General review'}</p>
+                <button type="button" className="btn btn-secondary mt-3" onClick={() => onLearningAction(suggestion.type === 'flashcards' ? 'flashcards' : 'quiz', suggestion.target_concept)}>
+                  {suggestion.type === 'flashcards' ? 'Open Flashcards' : 'Start Practice'}
+                </button>
               </div>
             ))}
           </div>

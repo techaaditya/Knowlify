@@ -11,9 +11,9 @@ GRAPH = {
 
 
 def test_generated_quiz_uses_context_graph_relationships():
-    questions = generate_quiz_questions(GRAPH, "Molecules", count=3)
+    questions = generate_quiz_questions(GRAPH, "Molecules")
 
-    assert len(questions) == 3
+    assert len(questions) >= 3
     assert any(question["correct_answer"] == "Atoms" for question in questions)
     assert all(len(question["options"]) == 4 for question in questions)
 

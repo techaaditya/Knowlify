@@ -9,9 +9,10 @@ import { KnowledgeMapPage } from './pages/KnowledgeMapPage';
 import { SourcesPage } from './pages/SourcesPage';
 import { KnowledgeDashboardPage } from './pages/KnowledgeDashboardPage';
 import { QuizPage } from './pages/QuizPage';
+import { FlashcardsPage } from './pages/FlashcardsPage';
 import { WorkspaceHeader } from './components/Workspace/WorkspaceHeader';
 
-type Tab = 'dashboard' | 'sources' | 'chat' | 'graph' | 'quiz' | 'analytics';
+type Tab = 'dashboard' | 'sources' | 'chat' | 'graph' | 'quiz' | 'flashcards' | 'analytics';
 
 const NAV_ITEMS: { id: Tab; label: string }[] = [
   { id: 'dashboard', label: 'Dashboard' },
@@ -19,6 +20,7 @@ const NAV_ITEMS: { id: Tab; label: string }[] = [
   { id: 'chat', label: 'Chat' },
   { id: 'graph', label: 'Knowledge Graph' },
   { id: 'quiz', label: 'Quiz' },
+  { id: 'flashcards', label: 'Flashcards' },
   { id: 'analytics', label: 'Analytics' },
 ];
 
@@ -32,6 +34,7 @@ export const App: React.FC = () => {
   const currentCourse = useStudyStore((state) => state.currentCourse);
   const setCourse = useStudyStore((state) => state.setCourse);
   const fetchGraphData = useStudyStore((state) => state.fetchGraphData);
+  const setSelectedNodeId = useStudyStore((state) => state.setSelectedNodeId);
 
   const workspace = useWorkspaceStore((s) => s.workspace);
   const refreshAll = useWorkspaceStore((s) => s.refreshAll);
@@ -70,8 +73,10 @@ export const App: React.FC = () => {
         return <KnowledgeMapPage />;
       case 'quiz':
         return <QuizPage />;
+      case 'flashcards':
+        return <FlashcardsPage />;
       case 'analytics':
-        return <DashboardPage />;
+        return <DashboardPage onLearningAction={handleLearningAction} />;
       default:
         return <KnowledgeDashboardPage />;
     }
@@ -80,6 +85,11 @@ export const App: React.FC = () => {
   const handleAddSources = () => {
     setActiveTab('sources');
     setAddSourcesTrigger((n) => n + 1);
+  };
+
+  const handleLearningAction = (tab: 'graph' | 'quiz' | 'flashcards', conceptId?: string | null) => {
+    if (conceptId) setSelectedNodeId(conceptId);
+    setActiveTab(tab);
   };
 
   return (

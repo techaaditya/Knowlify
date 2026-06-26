@@ -120,11 +120,10 @@ export interface GeneratedFlashcard {
   back: string;
 }
 
-export const generateWorkspaceQuiz = async (workspaceId: string, conceptId: string, count = 3) => {
-  const response = await client.post<{ concept_id: string; questions: GeneratedQuizQuestion[] }>('/api/quiz/generate', {
+export const generateWorkspaceQuiz = async (workspaceId: string, conceptId: string) => {
+  const response = await client.post<{ concept_id: string; title: string; instructions: string; questions: GeneratedQuizQuestion[] }>('/api/quiz/generate', {
     workspace_id: workspaceId,
     concept_id: conceptId,
-    count,
   });
   return response.data;
 };
