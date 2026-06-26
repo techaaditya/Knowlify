@@ -106,3 +106,51 @@ export const getDashboardEngineSummary = async (studentId: string, workspaceId?:
   });
   return response.data;
 };
+
+export interface GeneratedQuizQuestion {
+  id: string;
+  concept_id: string;
+  prompt: string;
+  options: string[];
+}
+
+export interface GeneratedFlashcard {
+  id: string;
+  front: string;
+  back: string;
+}
+
+export const generateWorkspaceQuiz = async (workspaceId: string, conceptId: string, count = 3) => {
+  const response = await client.post<{ concept_id: string; questions: GeneratedQuizQuestion[] }>('/api/quiz/generate', {
+    workspace_id: workspaceId,
+    concept_id: conceptId,
+    count,
+  });
+  return response.data;
+};
+
+export const answerGeneratedQuiz = async (payload: {
+  student_id: string;
+  workspace_id: string;
+  question_id: string;
+  selected_option: number;
+  hints_used: number;
+  time_taken: number;
+}) => {
+  const response = await client.post<{
+    success: boolean;
+    student: unknown;
+    is_correct: boolean;
+    correct_answer: string;
+    explanation: string;
+    adaptive_recommendation?: AdaptiveRecommendation | null;
+  }>('/api/quiz/answer', payload);
+  return response.data;
+};
+
+export const getGeneratedFlashcards = async (workspaceId: string, conceptId: string, count = 4) => {
+  const response = await client.get<{ concept_id: string; cards: GeneratedFlashcard[] }>('/api/flashcards', {
+    params: { workspace_id: workspaceId, concept_id: conceptId, count },
+  });
+  return response.data;
+};
