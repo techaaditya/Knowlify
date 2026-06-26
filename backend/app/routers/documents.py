@@ -53,6 +53,11 @@ def generate_pdf_graph(pdf_path: str):
 
 @router.post("/extract")
 async def extract_document():
+    raise HTTPException(
+        status_code=410,
+        detail="Sample-document extraction was removed. Upload a source to a workspace instead.",
+    )
+
     # Resolves paths robustly
     # Resolve sample.pdf — check backend/app/ first (where we copied it), then project root
     _here = os.path.dirname(os.path.abspath(__file__))

@@ -118,8 +118,6 @@ export const App: React.FC = () => {
               onChange={(e) => setCourse(e.target.value)}
             >
               <option value="Workspace">Workspace Sources</option>
-              <option value="Calculus">Calculus (Demo)</option>
-              <option value="VoiceBanking">Voice Banking (Demo)</option>
             </select>
           </div>
 

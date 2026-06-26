@@ -5,7 +5,7 @@ from pydantic import BaseModel
 from typing import Optional
 
 class QuizAttemptCreate(BaseModel):
-    student_id: str = "S001"
+    student_id: str
     topic_name: str
     question_id: str
     is_correct: bool

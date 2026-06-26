@@ -17,7 +17,7 @@ async def record_attempt(payload: QuizAttemptCreate):
         engine = StudentModelingEngine(data_file=DATA_FILE)
         
         if payload.student_id not in engine.students:
-            engine.create_student(payload.student_id, "Alex Johnson")
+            engine.create_student(payload.student_id, "New learner")
             
         engine.record_attempt(
             payload.student_id,

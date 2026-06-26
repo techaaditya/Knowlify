@@ -31,8 +31,9 @@ export interface AdaptiveRecommendation {
   prerequisite_source?: string | null;
 }
 
-export const getAdaptiveDemoRecommendation = async () => {
-  const response = await client.get<AdaptiveRecommendation>('/api/adaptive/demo-recommendation', {
+export const getAdaptiveRecommendation = async (studentId: string, conceptId: string, workspaceId: string) => {
+  const response = await client.get<AdaptiveRecommendation>(`/api/adaptive/recommendation/${studentId}`, {
+    params: { concept_id: conceptId, workspace_id: workspaceId },
     headers: ADAPTIVE_API_KEY ? { 'X-Adaptive-API-Key': ADAPTIVE_API_KEY } : undefined,
   });
   return response.data;
@@ -97,8 +98,11 @@ export interface DashboardEngineSummary {
 }
 
 export const getDashboardEngineSummary = async (studentId: string, workspaceId?: string) => {
+  if (!workspaceId) {
+    throw new Error('Select a workspace to view learning analytics.');
+  }
   const response = await client.get<DashboardEngineSummary>(`/api/dashboard/student/${studentId}`, {
-    params: workspaceId ? { workspace_id: workspaceId } : undefined,
+    params: { workspace_id: workspaceId },
   });
   return response.data;
 };

@@ -1,5 +1,4 @@
 import { create } from 'zustand';
-import client from '../api/client';
 import { getWorkspaceGraph } from '../api/sources';
 import { useSourcesStore } from './sourcesStore';
 
@@ -57,8 +56,7 @@ export const useStudyStore = create<StudyState>((set, get) => ({
         set({ graphData, loading: false });
         return;
       }
-      const res = await client.get(`/api/graph?course=${activeCourse}`);
-      set({ graphData: res.data, loading: false });
+      set({ graphData: { nodes: [], edges: [] }, loading: false });
     } catch (err: any) {
       set({ error: err.message, loading: false });
     }
@@ -71,9 +69,7 @@ export const useStudyStore = create<StudyState>((set, get) => ({
   runExtractionPipeline: async () => {
     set({ loading: true });
     try {
-      const res = await client.post('/api/extract');
-      set({ graphData: res.data, currentCourse: 'VoiceBanking', loading: false });
-      return res.data;
+      throw new Error('Upload a source to a workspace to create a knowledge graph.');
     } catch (err: any) {
       set({ error: err.message, loading: false });
       throw err;

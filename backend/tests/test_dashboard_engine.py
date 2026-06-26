@@ -1,5 +1,5 @@
 from app.engines.dashboard import dashboard_engine
-from app.routers.dashboard import choose_recommendation_concept, graph_has_data
+from app.routers.dashboard import choose_recommendation_concept, empty_student_profile, graph_has_data
 
 
 def sample_student():
@@ -103,3 +103,11 @@ def test_dashboard_uses_lowest_mastery_concept_from_context_graph():
 
     assert graph_has_data(graph) is True
     assert choose_recommendation_concept(student, graph) == "Organic Chemistry"
+
+
+def test_new_dashboard_profile_contains_no_demo_attempts():
+    profile = empty_student_profile("student-1")
+
+    assert profile["student_id"] == "student-1"
+    assert profile["topics"] == {}
+    assert profile["attempt_history"] == []
