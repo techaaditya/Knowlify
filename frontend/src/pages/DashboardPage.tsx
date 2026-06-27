@@ -121,9 +121,10 @@ const ContextGraphChart: React.FC<{ graph: DashboardEngineSummary['context_graph
 
 interface DashboardPageProps {
   onLearningAction: (tab: 'graph' | 'quiz' | 'flashcards', conceptId?: string | null) => void;
+  onChatAction?: (conceptId?: string | null, mode?: string) => void;
 }
 
-export const DashboardPage: React.FC<DashboardPageProps> = ({ onLearningAction }) => {
+export const DashboardPage: React.FC<DashboardPageProps> = ({ onLearningAction, onChatAction }) => {
   const studentId = useUserStore((state) => state.studentId);
   const workspace = useWorkspaceStore((state) => state.workspace);
   const [dashboard, setDashboard] = useState<DashboardEngineSummary | null>(null);
@@ -322,9 +323,29 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onLearningAction }
             </div>
           </div>
           <div className="flex flex-wrap gap-3 mt-5">
-            <button type="button" className="btn btn-secondary" onClick={() => onLearningAction('graph', recommendedConcept)}>Open Explanation</button>
-            <button type="button" className="btn btn-secondary" onClick={() => onLearningAction('flashcards', recommendedConcept)}>Generate Flashcards</button>
-            <button type="button" className="btn btn-primary" onClick={() => onLearningAction('quiz', recommendedConcept)}>Start Concept Quiz</button>
+            <button type="button" className="btn btn-secondary" onClick={() => onLearningAction('graph', recommendedConcept)}>Open Graph</button>
+            {onChatAction && (
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => onChatAction(recommendedConcept, 'explain')}
+                title="Open chatbot with this concept pre-loaded in Explain mode"
+              >
+                💬 Chat with Tutor
+              </button>
+            )}
+            {onChatAction && recommendation?.misconception && (
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => onChatAction(recommendedConcept, 'socratic')}
+                title="Socratic questioning to address your misconceptions"
+              >
+                🤔 Socratic Review
+              </button>
+            )}
+            <button type="button" className="btn btn-secondary" onClick={() => onLearningAction('flashcards', recommendedConcept)}>Flashcards</button>
+            <button type="button" className="btn btn-primary" onClick={() => onLearningAction('quiz', recommendedConcept)}>Start Quiz</button>
             {recommendation.weakest_prerequisite && <button type="button" className="btn btn-secondary" onClick={() => onLearningAction('flashcards', recommendation.weakest_prerequisite)}>Review Prerequisite</button>}
           </div>
           </>

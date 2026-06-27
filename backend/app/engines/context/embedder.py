@@ -5,7 +5,8 @@ import os
 def get_llm_client():
     return OpenAI(
         base_url=os.getenv("OLLAMA_BASE_URL"),
-        api_key=os.getenv("OLLAMA_API_KEY")
+        api_key=os.getenv("OLLAMA_API_KEY"),
+        timeout=30.0,
     )
 
 def embed_texts(texts: list[str], model='nomic-embed-text') -> list[list[float]]:
