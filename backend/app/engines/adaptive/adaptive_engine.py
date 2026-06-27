@@ -99,6 +99,18 @@ def suggested_activity_for_action(next_action: str, misconception: Optional[str]
     return "Reteach the core concept with worked examples."
 
 
+def student_model_due_for_review(student_profile: Optional[dict], concept_id: str) -> bool:
+    if not student_profile:
+        return False
+    review_date = student_profile.get("topics", {}).get(concept_id, {}).get("next_review_date")
+    if not review_date:
+        return False
+    try:
+        return datetime.strptime(review_date, "%Y-%m-%d").date() <= datetime.now().date()
+    except ValueError:
+        return False
+
+
 def prerequisite_strength(db: Session, student_id: str, concept: models.Concept) -> float:
     if not concept.prerequisites:
         return 1.0
@@ -343,6 +355,7 @@ def get_recommendation(
     mastery_record = get_or_create_mastery(db, student_id, concept_id)
     risk = forgetting_risk(mastery_record.mastery, mastery_record.last_practiced)
     misconception = persistent_misconception(student_profile, concept_id)
+    due_for_review = student_model_due_for_review(student_profile, concept_id)
     prereq_strength = prerequisite_strength(db, student_id, concept)
     readiness_score = calculate_readiness_score(
         mastery_record.mastery,
@@ -395,7 +408,10 @@ def get_recommendation(
             prerequisite_source="Context Engine graph",
         )
 
-    if risk == "high":
+    if due_for_review:
+        next_action = "review"
+        reason = f"{concept.name} is due for spaced review based on the Student Model revision schedule."
+    elif risk == "high":
         next_action = "review"
         reason = f"{concept.name} is at high forgetting risk because practice is stale."
     elif mastery_record.mastery >= 0.85:

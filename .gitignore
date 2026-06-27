@@ -30,6 +30,8 @@ backend/uploads/
 *.db
 extracted_graph_cache.json
 student_data.json
+student_workspace_data.json
+flashcard_reviews.json
 
 
 
