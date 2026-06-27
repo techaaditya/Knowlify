@@ -83,6 +83,61 @@ def source_context_for_concept(
     return ranked[:limit]
 
 
+def source_context_for_query(
+    db: Session,
+    workspace_id: str,
+    query: str,
+    concept: dict | None = None,
+    source_ids: list[str] | None = None,
+    limit: int = 5,
+) -> list[dict]:
+    """Return source chunks that best match the user's chat message and concept."""
+    concept = concept or {}
+    concept_id = concept.get("id", "")
+    concept_name = concept.get("display_name") or concept_id
+    seed_text = " ".join(
+        str(value)
+        for value in [
+            query,
+            concept_id,
+            concept_name,
+            concept.get("description", ""),
+            " ".join(concept.get("prerequisites", [])),
+        ]
+        if value
+    )
+    keywords = keywords_for_text(seed_text, limit=12)
+
+    rows_query = (
+        db.query(SourceChunk, Source)
+        .join(Source, SourceChunk.source_id == Source.id)
+        .filter(Source.workspace_id == workspace_id, Source.processing_status == "completed")
+    )
+    if source_ids:
+        rows_query = rows_query.filter(Source.id.in_(source_ids))
+
+    ranked = []
+    for chunk, source in rows_query.all():
+        score = _score_text(chunk.text, concept_id, concept_name, keywords)
+        if score <= 0:
+            continue
+        snippet = " ".join(chunk.text.split())[:520]
+        ranked.append(
+            {
+                "source_id": source.id,
+                "source_name": source.source_name,
+                "chunk_id": chunk.id,
+                "page_number": chunk.page_number,
+                "snippet": snippet,
+                "keywords": keywords_for_text(chunk.text, limit=6),
+                "score": score,
+            }
+        )
+
+    ranked.sort(key=lambda item: item["score"], reverse=True)
+    return ranked[:limit]
+
+
 def workspace_source_summary(db: Session, workspace_id: str) -> dict:
     sources = db.query(Source).filter(Source.workspace_id == workspace_id).all()
     completed = [source for source in sources if source.processing_status == "completed"]

@@ -18,6 +18,13 @@ interface QuizItem {
   options: string[];
 }
 
+interface SuggestedAction {
+  label: string;
+  mode: ModeId;
+  target_concept?: string | null;
+  message: string;
+}
+
 interface ChatMessage {
   id: string;
   role: 'user' | 'assistant';
@@ -30,6 +37,7 @@ interface ChatMessage {
   quizAnswered?: boolean;
   selectedQuizOption?: number | null;
   quizResult?: { is_correct: boolean; explanation: string; correct_answer: string } | null;
+  suggestedActions?: SuggestedAction[];
 }
 
 interface Props {
@@ -465,7 +473,7 @@ export const ChatWindow: React.FC<Props> = ({
         source_ids: sourceIds,
       });
 
-      const { reply, sources_used, mastery, flashcards, quiz } = res.data;
+      const { reply, sources_used, mastery, flashcards, quiz, suggested_actions } = res.data;
 
       historyRef.current.push({ role: 'user', content: text });
       historyRef.current.push({ role: 'assistant', content: reply });
@@ -473,7 +481,7 @@ export const ChatWindow: React.FC<Props> = ({
       const botMsg: ChatMessage = {
         id: uid(), role: 'assistant', content: reply,
         mode: activeMode, sourcesUsed: sources_used || [], mastery,
-        flashcards, quiz,
+        flashcards, quiz, suggestedActions: suggested_actions || [],
       };
 
       setMessages(prev => [...prev, botMsg]);
@@ -500,6 +508,7 @@ export const ChatWindow: React.FC<Props> = ({
         answer: String(optIdx),
         question_id: questionId,
         question_context: prompt,
+        difficulty: 'Medium',
       });
 
       const { is_correct, explanation, correct_answer } = res.data;
@@ -558,6 +567,14 @@ export const ChatWindow: React.FC<Props> = ({
 
   const handleClearConcept = () => {
     setSelectedNodeId(null);
+  };
+
+  const handleSuggestedAction = (action: SuggestedAction) => {
+    if (action.target_concept) {
+      setSelectedNodeId(action.target_concept);
+    }
+    setMode(action.mode);
+    sendMessage(action.message, action.mode);
   };
 
   const copyToClipboard = (text: string) => {
@@ -729,6 +746,29 @@ export const ChatWindow: React.FC<Props> = ({
                     }}
                   />
                 )}
+
+                {msg.role === 'assistant' && msg.suggestedActions && msg.suggestedActions.length > 0 && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 10, borderTop: '1px solid var(--border-faint)', paddingTop: 10 }}>
+                    {msg.suggestedActions.map((action) => (
+                      <button
+                        key={`${msg.id}-${action.label}`}
+                        onClick={() => handleSuggestedAction(action)}
+                        style={{
+                          padding: '6px 10px',
+                          borderRadius: 16,
+                          border: '1px solid var(--swatch-3)',
+                          background: 'var(--swatch-2)',
+                          color: 'var(--text-primary)',
+                          fontSize: 11,
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {action.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Source badges */}
@@ -770,7 +810,6 @@ export const ChatWindow: React.FC<Props> = ({
           ref={textInputRef}
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          onKeyDown={handleClearConcept}
           placeholder={
             mode === 'test' 
               ? 'Select an option above to answer the quiz!' 
