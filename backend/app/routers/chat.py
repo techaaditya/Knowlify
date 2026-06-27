@@ -1,44 +1,355 @@
-# API Endpoint - Chat
-# Exposes routes handling Socratic tutoring chat logic.
+# API Endpoint - Adaptive Chat
+# Full LLM-powered tutoring grounded in workspace sources, guided by Student Model.
 
+import os
 from typing import Optional
-from fastapi import APIRouter
+
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from ..engines.generative.socratic_tutor import generate_socratic_prompt
+from sqlalchemy.orm import Session
+
+from ..config import settings
+from ..database import get_db
+from ..engines.cognitive.student_model import StudentModelingEngine
+from ..engines.generative.chat_engine import (
+    build_graph_context,
+    build_source_context,
+    build_student_context,
+    generate_chat_response,
+)
+from ..models.source import Source
+from ..services.workspace_graph import graph_has_data, load_workspace_graph
 
 router = APIRouter(prefix="/api", tags=["chat"])
 
-class SourceContext(BaseModel):
-    id: str
-    name: str
-    summary: Optional[str] = None
-    topics: list[str] = []
+_HERE = os.path.dirname(os.path.abspath(__file__))
+DATA_FILE = os.path.join(_HERE, "..", "student_data.json")
 
 
-class ChatMessage(BaseModel):
-    concept: str
+# ---------------------------------------------------------------------------
+# Request / response schemas
+# ---------------------------------------------------------------------------
+
+class ChatHistoryMessage(BaseModel):
+    role: str  # "user" or "assistant"
+    content: str
+
+
+class ChatRequest(BaseModel):
+    workspace_id: str
+    concept_id: Optional[str] = None
+    student_id: str = "student-1"
+    mode: str = "explain"
     message: str
-    sources: list[SourceContext] = []
+    history: list[ChatHistoryMessage] = []
+    source_ids: list[str] = []
 
+
+class ChatAnswerRequest(BaseModel):
+    workspace_id: str
+    concept_id: str
+    student_id: str = "student-1"
+    answer: str
+    question_context: str = ""
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+def _load_student_data(student_id: str) -> tuple[dict | None, dict | None]:
+    """Load the student profile and detect misconceptions."""
+    try:
+        engine = StudentModelingEngine(data_file=DATA_FILE)
+        if student_id in engine.students:
+            profile = engine.get_student(student_id)
+            misconceptions = engine.detect_misconceptions(student_id)
+            return profile, misconceptions
+    except Exception:
+        pass
+    return None, None
+
+
+def _load_adaptive_recommendation(
+    student_id: str,
+    concept_id: str,
+    graph_data: dict,
+) -> dict | None:
+    """Try to fetch an adaptive recommendation; return None on any failure."""
+    try:
+        from ..engines.adaptive import adaptive_engine
+        from ..engines.adaptive.database import SessionLocal
+
+        engine = StudentModelingEngine(data_file=DATA_FILE)
+        if student_id not in engine.students:
+            return None
+
+        student_profile = engine.get_student(student_id)
+        graph_concepts = {
+            node.get("id")
+            for node in graph_data.get("nodes", [])
+            if isinstance(node, dict)
+        }
+        if concept_id not in graph_concepts:
+            return None
+
+        db = SessionLocal()
+        try:
+            rec = adaptive_engine.generate_recommendation_from_student_profile(
+                db, student_profile, concept_id, graph_data
+            )
+            return rec.model_dump()
+        finally:
+            db.close()
+    except Exception:
+        return None
+
+
+def _load_source_details(db: Session, source_ids: list[str]) -> list[dict]:
+    """Load full source details including extracted text for grounding."""
+    if not source_ids:
+        return []
+    sources = db.query(Source).filter(Source.id.in_(source_ids)).all()
+    return [
+        {
+            "source_name": s.source_name,
+            "ai_summary": s.ai_summary,
+            "key_topics": s.key_topics,
+            "extracted_text": s.extracted_text or "",
+        }
+        for s in sources
+    ]
+
+
+def _get_concept_name(graph_data: dict, concept_id: str | None) -> str | None:
+    """Look up the display name for a concept ID."""
+    if not concept_id or not graph_data:
+        return None
+    for node in graph_data.get("nodes", []):
+        if isinstance(node, dict) and node.get("id") == concept_id:
+            return node.get("display_name", concept_id)
+    return concept_id
+
+
+def _build_mastery_info(
+    student_profile: dict | None,
+    concept_id: str | None,
+) -> dict | None:
+    """Extract mastery info for the response payload."""
+    if not student_profile or not concept_id:
+        return None
+    topic_data = student_profile.get("topics", {}).get(concept_id)
+    if not topic_data:
+        return {"mastery_score": 0, "status": "Not Started", "total_attempts": 0}
+    return {
+        "mastery_score": topic_data.get("mastery_score", 0),
+        "status": topic_data.get("status", "Not Started"),
+        "total_attempts": topic_data.get("total_attempts", 0),
+        "correct_answers": topic_data.get("correct_answers", 0),
+        "wrong_answers": topic_data.get("wrong_answers", 0),
+    }
+
+
+# ---------------------------------------------------------------------------
+# Endpoints
+# ---------------------------------------------------------------------------
 
 @router.post("/chat")
-async def chat_tutor(payload: ChatMessage):
-    prompt = generate_socratic_prompt(payload.concept, payload.message)
+async def adaptive_chat(payload: ChatRequest, db: Session = Depends(get_db)):
+    """
+    Full adaptive chat flow:
+    1. Load workspace graph
+    2. Load source details for grounding
+    3. Load student profile + misconceptions
+    4. Fetch adaptive recommendation (graceful failure)
+    5. Build context and call LLM
+    6. Return response with metadata
+    """
+    # 1. Load workspace graph
+    try:
+        graph_data = load_workspace_graph(db, payload.workspace_id)
+    except HTTPException:
+        graph_data = {"nodes": [], "edges": []}
 
-    source_hint = ""
-    if payload.sources:
-        names = ", ".join(s.name for s in payload.sources[:5])
-        source_hint = f" Based on your selected sources ({names}),"
-
-    if payload.message.strip().endswith("?"):
-        reply = (
-            f"That's a thoughtful question about '{payload.concept}'.{source_hint} "
-            f"What evidence from your sources supports your thinking so far?"
+    # 2. Load source details
+    source_ids = payload.source_ids
+    if not source_ids:
+        # If no specific sources selected, use all completed sources in workspace
+        all_sources = (
+            db.query(Source)
+            .filter(
+                Source.workspace_id == payload.workspace_id,
+                Source.processing_status == "completed",
+            )
+            .all()
         )
-    else:
-        reply = (
-            f"Interesting point about '{payload.concept}'.{source_hint} "
-            f"Can you explain why that matters in the broader context of your knowledge base?"
+        source_ids = [s.id for s in all_sources]
+
+    source_details = _load_source_details(db, source_ids)
+    source_names = [s["source_name"] for s in source_details if s.get("source_name")]
+
+    # 3. Load student profile
+    student_profile, misconceptions = _load_student_data(payload.student_id)
+
+    # 4. Fetch adaptive recommendation (non-blocking)
+    recommendation = None
+    if payload.concept_id and graph_has_data(graph_data):
+        recommendation = _load_adaptive_recommendation(
+            payload.student_id, payload.concept_id, graph_data
         )
 
-    return {"reply": reply, "prompt_debug": prompt}
+    # 5. Build all context layers
+    source_context = build_source_context(source_details, payload.concept_id)
+    graph_context = build_graph_context(graph_data, payload.concept_id)
+    student_context = build_student_context(
+        student_profile, payload.concept_id, misconceptions, recommendation
+    )
+    concept_name = _get_concept_name(graph_data, payload.concept_id)
+
+    # 6. Call LLM
+    try:
+        history_dicts = [{"role": m.role, "content": m.content} for m in payload.history]
+
+        reply = generate_chat_response(
+            message=payload.message,
+            history=history_dicts,
+            mode=payload.mode,
+            source_context=source_context,
+            graph_context=graph_context,
+            student_context=student_context,
+            concept_name=concept_name,
+        )
+    except Exception as e:
+        print(f"[chat] LLM error: {e}")
+        raise HTTPException(
+            status_code=502,
+            detail=f"Failed to get a response from the tutoring model: {str(e)}",
+        )
+
+    # 7. Build response
+    mastery_info = _build_mastery_info(student_profile, payload.concept_id)
+
+    # Detect which sources were likely cited in the response
+    sources_used = [
+        name for name in source_names
+        if name.lower() in reply.lower() or name.split(".")[0].lower() in reply.lower()
+    ]
+
+    return {
+        "reply": reply,
+        "mode": payload.mode,
+        "concept_name": concept_name,
+        "sources_used": sources_used if sources_used else source_names[:3],
+        "mastery": mastery_info,
+        "recommendation": recommendation,
+        "misconceptions": (
+            misconceptions.get(payload.concept_id, [])
+            if misconceptions and payload.concept_id
+            else []
+        ),
+    }
+
+
+@router.post("/chat/answer")
+async def grade_chat_answer(
+    payload: ChatAnswerRequest,
+    db: Session = Depends(get_db),
+):
+    """
+    Grade a student's answer from a chat quiz question.
+    Records the attempt in the Student Model and returns updated mastery.
+    """
+    try:
+        graph_data = load_workspace_graph(db, payload.workspace_id)
+    except HTTPException:
+        graph_data = {"nodes": [], "edges": []}
+
+    # Use LLM to evaluate the answer
+    student_profile, misconceptions = _load_student_data(payload.student_id)
+    concept_name = _get_concept_name(graph_data, payload.concept_id)
+
+    eval_prompt = (
+        f"The student was asked a question about '{concept_name or payload.concept_id}'. "
+        f"Question context: {payload.question_context}\n\n"
+        f"Student's answer: {payload.answer}\n\n"
+        f"Evaluate: Is the student's answer correct? Respond with a JSON object: "
+        f'{{"is_correct": true/false, "explanation": "brief explanation", '
+        f'"error_type": null or "type of error if wrong"}}'
+    )
+
+    try:
+        from ..engines.generative.chat_engine import _get_chat_client
+
+        client = _get_chat_client()
+        response = client.chat.completions.create(
+            model=settings.CHAT_MODEL,
+            messages=[
+                {"role": "system", "content": "You are a grading assistant. Respond ONLY with valid JSON."},
+                {"role": "user", "content": eval_prompt},
+            ],
+            temperature=0.1,
+            max_tokens=300,
+        )
+        import json
+
+        raw = response.choices[0].message.content or "{}"
+        # Try to parse JSON from the response
+        try:
+            result = json.loads(raw)
+        except json.JSONDecodeError:
+            # Try to extract JSON from markdown code blocks
+            if "```" in raw:
+                json_part = raw.split("```")[1]
+                if json_part.startswith("json"):
+                    json_part = json_part[4:]
+                result = json.loads(json_part.strip())
+            else:
+                result = {"is_correct": False, "explanation": raw, "error_type": None}
+
+        is_correct = result.get("is_correct", False)
+        explanation = result.get("explanation", "")
+        error_type = result.get("error_type")
+
+    except Exception as e:
+        print(f"[chat/answer] LLM grading error: {e}")
+        is_correct = False
+        explanation = "Could not evaluate your answer automatically."
+        error_type = None
+
+    # Record the attempt in Student Model
+    try:
+        engine = StudentModelingEngine(data_file=DATA_FILE)
+        if payload.student_id not in engine.students:
+            engine.create_student(payload.student_id, "Learner")
+
+        engine.record_attempt(
+            student_id=payload.student_id,
+            topic_name=payload.concept_id,
+            question_id=f"chat-quiz-{hash(payload.question_context) % 10000}",
+            is_correct=is_correct,
+            error_type=error_type if not is_correct else None,
+            hints_used=0,
+            time_taken=0,
+        )
+        engine.save_data()
+
+        updated_profile = engine.get_student(payload.student_id)
+        updated_mastery = _build_mastery_info(updated_profile, payload.concept_id)
+    except Exception as e:
+        print(f"[chat/answer] Student Model error: {e}")
+        updated_mastery = None
+
+    # Fetch updated recommendation
+    updated_recommendation = None
+    if graph_has_data(graph_data):
+        updated_recommendation = _load_adaptive_recommendation(
+            payload.student_id, payload.concept_id, graph_data
+        )
+
+    return {
+        "is_correct": is_correct,
+        "explanation": explanation,
+        "error_type": error_type,
+        "mastery": updated_mastery,
+        "recommendation": updated_recommendation,
+    }

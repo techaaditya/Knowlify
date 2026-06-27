@@ -14,6 +14,11 @@ import { WorkspaceHeader } from './components/Workspace/WorkspaceHeader';
 
 type Tab = 'dashboard' | 'sources' | 'chat' | 'graph' | 'quiz' | 'flashcards' | 'analytics';
 
+interface ChatActionPayload {
+  conceptId?: string | null;
+  mode?: string;
+}
+
 const NAV_ITEMS: { id: Tab; label: string }[] = [
   { id: 'dashboard', label: 'Dashboard' },
   { id: 'sources', label: 'Sources' },
@@ -76,11 +81,13 @@ export const App: React.FC = () => {
       case 'flashcards':
         return <FlashcardsPage />;
       case 'analytics':
-        return <DashboardPage onLearningAction={handleLearningAction} />;
+        return <DashboardPage onLearningAction={handleLearningAction} onChatAction={handleChatAction} />;
       default:
         return <KnowledgeDashboardPage />;
     }
   };
+
+  const [chatInitPayload, setChatInitPayload] = React.useState<ChatActionPayload | null>(null);
 
   const handleAddSources = () => {
     setActiveTab('sources');
@@ -90,6 +97,12 @@ export const App: React.FC = () => {
   const handleLearningAction = (tab: 'graph' | 'quiz' | 'flashcards', conceptId?: string | null) => {
     if (conceptId) setSelectedNodeId(conceptId);
     setActiveTab(tab);
+  };
+
+  const handleChatAction = (conceptId?: string | null, mode?: string) => {
+    if (conceptId) setSelectedNodeId(conceptId);
+    setChatInitPayload({ conceptId, mode });
+    setActiveTab('chat');
   };
 
   return (
