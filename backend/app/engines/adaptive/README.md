@@ -11,6 +11,8 @@ Engine 3 handles adaptive recommendations for Knowlify. It is intentionally writ
 - Sync mastery from the Cognitive Student Model without changing the Student Model engine.
 - Use repeated Student Model error types for misconception-specific reteaching.
 - Read prerequisite relationships from Context Engine-style graph data.
+- Calculate a readiness score from mastery, prerequisite strength, forgetting risk, and misconception risk.
+- Return a suggested next activity for the frontend.
 - Return a plain-English next learning recommendation.
 
 ## Demo Concepts
@@ -80,11 +82,23 @@ recommendation = adaptive_engine.get_recommendation(
 )
 ```
 
+The preferred integrated pipeline is:
+
+```python
+recommendation = adaptive_engine.generate_recommendation_from_student_profile(
+    db,
+    student_profile,
+    concept_id="Derivatives",
+    graph_data=graph_data,
+)
+```
+
 What happens:
 
 - Student Model `mastery_score` is converted from `0-100` into Adaptive mastery `0-1`.
 - Student Model `last_revised` becomes Adaptive `last_practiced`.
 - Context Engine graph edges become prerequisites.
 - Student Model `error_types` with repeated mistakes can force a targeted `reteach` recommendation.
+- Adaptive combines the signals into a readiness score and suggested activity.
 
 This keeps the Student Model code unchanged while letting the Adaptive Engine use its data.
