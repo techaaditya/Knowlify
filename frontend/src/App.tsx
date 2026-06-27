@@ -73,7 +73,12 @@ export const App: React.FC = () => {
       case 'sources':
         return <SourcesPage openModalOnMount={addSourcesTrigger > 0} />;
       case 'chat':
-        return <StudyPage />;
+        return (
+          <StudyPage
+            initialMode={chatInitPayload?.mode}
+            onClearInitPayload={() => setChatInitPayload(null)}
+          />
+        );
       case 'graph':
         return <KnowledgeMapPage />;
       case 'quiz':

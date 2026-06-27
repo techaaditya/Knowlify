@@ -51,6 +51,7 @@ class ChatAnswerRequest(BaseModel):
     student_id: str = "student-1"
     answer: str
     question_context: str = ""
+    question_id: Optional[str] = None
 
 
 # ---------------------------------------------------------------------------
@@ -163,7 +164,7 @@ async def adaptive_chat(payload: ChatRequest, db: Session = Depends(get_db)):
     3. Load student profile + misconceptions
     4. Fetch adaptive recommendation (graceful failure)
     5. Build context and call LLM
-    6. Return response with metadata
+    6. Return response with metadata + structured quiz/flashcards if requested
     """
     # 1. Load workspace graph
     try:
@@ -206,7 +207,39 @@ async def adaptive_chat(payload: ChatRequest, db: Session = Depends(get_db)):
     )
     concept_name = _get_concept_name(graph_data, payload.concept_id)
 
-    # 6. Call LLM
+    # 6. Structured quiz/flashcards if requested and concept is selected
+    flashcards = None
+    quiz = None
+
+    if payload.concept_id and graph_has_data(graph_data):
+        if payload.mode == "flashcard":
+            try:
+                from ..engines.generative.learning_materials import generate_flashcards
+                flashcards = generate_flashcards(graph_data, payload.concept_id, count=5)
+            except Exception as e:
+                print(f"[chat] Flashcard generation error: {e}")
+        elif payload.mode == "test":
+            try:
+                from ..engines.generative.learning_materials import generate_quiz_questions
+                from uuid import uuid4
+                from .quiz import GENERATED_QUESTIONS
+
+                questions = generate_quiz_questions(graph_data, payload.concept_id)
+                if questions:
+                    # Pick a question randomly or based on history
+                    question = questions[0]
+                    question_id = f"generated-chat-{uuid4().hex}"
+                    GENERATED_QUESTIONS[question_id] = {**question, "concept_id": payload.concept_id}
+                    quiz = {
+                        "id": question_id,
+                        "concept_id": payload.concept_id,
+                        "prompt": question["prompt"],
+                        "options": question["options"],
+                    }
+            except Exception as e:
+                print(f"[chat] Quiz generation error: {e}")
+
+    # 7. Call LLM for conversational tutoring
     try:
         history_dicts = [{"role": m.role, "content": m.content} for m in payload.history]
 
@@ -226,7 +259,7 @@ async def adaptive_chat(payload: ChatRequest, db: Session = Depends(get_db)):
             detail=f"Failed to get a response from the tutoring model: {str(e)}",
         )
 
-    # 7. Build response
+    # 8. Build response
     mastery_info = _build_mastery_info(student_profile, payload.concept_id)
 
     # Detect which sources were likely cited in the response
@@ -247,6 +280,8 @@ async def adaptive_chat(payload: ChatRequest, db: Session = Depends(get_db)):
             if misconceptions and payload.concept_id
             else []
         ),
+        "flashcards": flashcards,
+        "quiz": quiz,
     }
 
 
@@ -264,57 +299,89 @@ async def grade_chat_answer(
     except HTTPException:
         graph_data = {"nodes": [], "edges": []}
 
-    # Use LLM to evaluate the answer
-    student_profile, misconceptions = _load_student_data(payload.student_id)
-    concept_name = _get_concept_name(graph_data, payload.concept_id)
+    is_correct = False
+    explanation = ""
+    error_type = None
 
-    eval_prompt = (
-        f"The student was asked a question about '{concept_name or payload.concept_id}'. "
-        f"Question context: {payload.question_context}\n\n"
-        f"Student's answer: {payload.answer}\n\n"
-        f"Evaluate: Is the student's answer correct? Respond with a JSON object: "
-        f'{{"is_correct": true/false, "explanation": "brief explanation", '
-        f'"error_type": null or "type of error if wrong"}}'
-    )
+    # Try exact match if question exists in our memory cache
+    from .quiz import GENERATED_QUESTIONS
+    question = None
+    if payload.question_id:
+        question = GENERATED_QUESTIONS.get(payload.question_id)
 
-    try:
-        from ..engines.generative.chat_engine import _get_chat_client
+    if question:
+        correct_answer = question["correct_answer"]
+        selected_answer = payload.answer.strip()
+        options = question["options"]
 
-        client = _get_chat_client()
-        response = client.chat.completions.create(
-            model=settings.CHAT_MODEL,
-            messages=[
-                {"role": "system", "content": "You are a grading assistant. Respond ONLY with valid JSON."},
-                {"role": "user", "content": eval_prompt},
-            ],
-            temperature=0.1,
-            max_tokens=300,
-        )
-        import json
-
-        raw = response.choices[0].message.content or "{}"
-        # Try to parse JSON from the response
         try:
-            result = json.loads(raw)
-        except json.JSONDecodeError:
-            # Try to extract JSON from markdown code blocks
-            if "```" in raw:
-                json_part = raw.split("```")[1]
-                if json_part.startswith("json"):
-                    json_part = json_part[4:]
-                result = json.loads(json_part.strip())
+            # Check if answer is a digit index
+            if selected_answer.isdigit():
+                idx = int(selected_answer)
+                if 0 <= idx < len(options):
+                    is_correct = (options[idx] == correct_answer)
+            # Check if answer is a character like A, B, C, D
+            elif len(selected_answer) == 1 and selected_answer.upper() in ["A", "B", "C", "D"]:
+                idx = ord(selected_answer.upper()) - 65
+                if 0 <= idx < len(options):
+                    is_correct = (options[idx] == correct_answer)
             else:
-                result = {"is_correct": False, "explanation": raw, "error_type": None}
+                is_correct = (selected_answer.lower() == correct_answer.lower())
+        except Exception:
+            is_correct = (selected_answer.lower() == correct_answer.lower())
 
-        is_correct = result.get("is_correct", False)
-        explanation = result.get("explanation", "")
-        error_type = result.get("error_type")
+        explanation = question["explanation"]
+        error_type = None if is_correct else "Concept misunderstanding"
+    else:
+        # Fallback to LLM grading
+        student_profile, misconceptions = _load_student_data(payload.student_id)
+        concept_name = _get_concept_name(graph_data, payload.concept_id)
 
-    except Exception as e:
-        print(f"[chat/answer] LLM grading error: {e}")
-        is_correct = False
-        explanation = "Could not evaluate your answer automatically."
-        error_type = None
+        eval_prompt = (
+            f"The student was asked a question about '{concept_name or payload.concept_id}'. "
+            f"Question context: {payload.question_context}\n\n"
+            f"Student's answer: {payload.answer}\n\n"
+            f"Evaluate: Is the student's answer correct? Respond with a JSON object: "
+            f'{{"is_correct": true/false, "explanation": "brief explanation", '
+            f'"error_type": null or "type of error if wrong"}}'
+        )
+
+        try:
+            from ..engines.generative.chat_engine import _get_chat_client
+
+            client = _get_chat_client()
+            response = client.chat.completions.create(
+                model=settings.CHAT_MODEL,
+                messages=[
+                    {"role": "system", "content": "You are a grading assistant. Respond ONLY with valid JSON."},
+                    {"role": "user", "content": eval_prompt},
+                ],
+                temperature=0.1,
+                max_tokens=300,
+            )
+            import json
+
+            raw = response.choices[0].message.content or "{}"
+            try:
+                result = json.loads(raw)
+            except json.JSONDecodeError:
+                if "```" in raw:
+                    json_part = raw.split("```")[1]
+                    if json_part.startswith("json"):
+                        json_part = json_part[4:]
+                    result = json.loads(json_part.strip())
+                else:
+                    result = {"is_correct": False, "explanation": raw, "error_type": None}
+
+            is_correct = result.get("is_correct", False)
+            explanation = result.get("explanation", "")
+            error_type = result.get("error_type")
+
+        except Exception as e:
+            print(f"[chat/answer] LLM grading error: {e}")
+            is_correct = False
+            explanation = "Could not evaluate your answer automatically."
+            error_type = None
 
     # Record the attempt in Student Model
     try:
@@ -325,7 +392,7 @@ async def grade_chat_answer(
         engine.record_attempt(
             student_id=payload.student_id,
             topic_name=payload.concept_id,
-            question_id=f"chat-quiz-{hash(payload.question_context) % 10000}",
+            question_id=payload.question_id or f"chat-quiz-{hash(payload.question_context) % 10000}",
             is_correct=is_correct,
             error_type=error_type if not is_correct else None,
             hints_used=0,

@@ -6,13 +6,24 @@ import { useUserStore } from '../store/userStore';
 import { ChatWindow } from '../components/Chat/ChatWindow';
 import { SelectedSourcesBar } from '../components/Sources/SelectedSourcesBar';
 
-export const StudyPage: React.FC = () => {
+interface StudyPageProps {
+  initialMode?: string;
+  onClearInitPayload?: () => void;
+}
+
+export const StudyPage: React.FC<StudyPageProps> = ({ initialMode, onClearInitPayload }) => {
   const selectedNodeData = useStudyStore((state) => state.selectedNodeData);
   const selectedNodeId = useStudyStore((state) => state.selectedNodeId);
   const selectedSources = useSourcesStore((s) => s.getSelectedSources());
   const selectedSourceIds = useSourcesStore((s) => s.selectedSourceIds);
   const workspace = useWorkspaceStore((s) => s.workspace);
   const studentId = useUserStore((s) => s.studentId);
+
+  React.useEffect(() => {
+    if (initialMode && onClearInitPayload) {
+      onClearInitPayload();
+    }
+  }, [initialMode, onClearInitPayload]);
 
   return (
     <div className="space-y-6">
@@ -69,6 +80,7 @@ export const StudyPage: React.FC = () => {
               workspaceId={workspace?.id}
               studentId={studentId}
               sourceIds={selectedSourceIds}
+              initialMode={initialMode}
             />
           </div>
         </div>
