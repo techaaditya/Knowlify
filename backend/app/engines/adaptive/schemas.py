@@ -34,3 +34,7 @@ class Recommendation(BaseModel):
     reason: str
     misconception: Optional[str] = None
     mastery_source: Optional[str] = None
+    readiness_score: Optional[float] = None
+    suggested_activity: Optional[str] = None
+    weakest_prerequisite: Optional[str] = None
+    prerequisite_source: Optional[str] = None

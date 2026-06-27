@@ -289,3 +289,55 @@ def test_shared_mastery_snapshot_uses_student_model_mastery(db):
     assert snapshot["concepts"]["Limits"]["student_model_mastery_score"] == 72.5
     assert snapshot["concepts"]["Limits"]["adaptive_mastery"] == 0.725
     assert snapshot["concepts"]["Limits"]["error_types"] == {"Sign error": 1}
+
+
+def test_integrated_pipeline_uses_student_model_and_context_graph(db):
+    student_profile = {
+        "student_id": "S006",
+        "name": "Integrated Student",
+        "topics": {
+            "Limits": {
+                "mastery_score": 45,
+                "last_revised": "2026-06-10 10:00:00",
+                "error_types": {},
+            },
+            "Derivatives": {
+                "mastery_score": 70,
+                "last_revised": "2026-06-10 10:05:00",
+                "error_types": {},
+            },
+        },
+    }
+    graph_data = {
+        "nodes": [{"id": "Limits"}, {"id": "Derivatives"}],
+        "edges": [{"from": "Limits", "to": "Derivatives"}],
+    }
+
+    recommendation = adaptive_engine.generate_recommendation_from_student_profile(
+        db,
+        student_profile,
+        "Derivatives",
+        graph_data,
+    )
+
+    assert recommendation.next_action == "prerequisite_review"
+    assert recommendation.weakest_prerequisite == "Limits"
+    assert recommendation.prerequisite_source == "Context Engine graph"
+    assert recommendation.readiness_score is not None
+
+
+def test_readiness_score_drops_for_misconception_and_forgetting_risk():
+    strong_score = adaptive_engine.calculate_readiness_score(
+        mastery=0.80,
+        prerequisite_mastery=0.90,
+        risk="low",
+        misconception=None,
+    )
+    risky_score = adaptive_engine.calculate_readiness_score(
+        mastery=0.80,
+        prerequisite_mastery=0.90,
+        risk="high",
+        misconception="Formula mistake",
+    )
+
+    assert risky_score < strong_score

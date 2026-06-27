@@ -36,7 +36,7 @@ interface UserState {
 }
 
 export const useUserStore = create<UserState>((set, get) => ({
-  studentId: 'S001',
+  studentId: 'student-1',
   studentData: null,
   loading: false,
   error: null,
@@ -44,7 +44,6 @@ export const useUserStore = create<UserState>((set, get) => ({
     set({ loading: true, error: null });
     try {
       const res = await client.get('/api/student');
-      // Resolve Alex Johnson (S001) out of dictionary
       const studentId = get().studentId;
       const data = res.data[studentId] || null;
       set({ studentData: data, loading: false });
