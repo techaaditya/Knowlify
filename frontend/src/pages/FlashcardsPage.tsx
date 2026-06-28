@@ -26,6 +26,7 @@ export const FlashcardsPage: React.FC = () => {
   const selectedSources = useSourcesStore((state) => state.getSelectedSources());
   const studentId = useUserStore((state) => state.studentId);
   const studentData = useUserStore((state) => state.studentData);
+  const fetchStudentData = useUserStore((state) => state.fetchStudentData);
   const [topic, setTopic] = useState('');
   const [cards, setCards] = useState<GeneratedFlashcard[]>([]);
   const [dueReviews, setDueReviews] = useState<any[]>([]);
@@ -79,6 +80,7 @@ export const FlashcardsPage: React.FC = () => {
         card_id: card.id,
         rating: value,
       });
+      await fetchStudentData();
       const due = await getDueFlashcards(studentId, workspace.id);
       setDueReviews(due.due_reviews as any[]);
       setIndex((current) => (current + 1) % cards.length);

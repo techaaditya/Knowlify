@@ -19,8 +19,26 @@ def test_generated_quiz_uses_context_graph_relationships():
 
 
 def test_generated_flashcards_are_grounded_in_selected_concept():
-    cards = generate_flashcards(GRAPH, "Molecules")
+    cards = generate_flashcards(
+        GRAPH,
+        "Molecules",
+        source_context=[
+            {
+                "source_name": "biology-notes.pdf",
+                "snippet": "Molecules form when atoms bond together. Their structure affects how matter behaves in chemical reactions.",
+                "keywords": ["atoms", "bond", "structure"],
+            }
+        ],
+    )
 
     assert len(cards) >= 3
-    assert "Molecules" in cards[0]["front"]
-    assert "atoms" in cards[0]["back"].lower()
+    assert any("main idea" in card["front"] for card in cards)
+    assert any("atoms bond together" in card["back"].lower() for card in cards)
+    assert all("where did" not in card["front"].lower() for card in cards)
+
+
+def test_generated_flashcards_include_learning_path_context():
+    cards = generate_flashcards(GRAPH, "Atoms", count=5)
+
+    assert any("unlock" in card["front"].lower() for card in cards)
+    assert any("Molecules" in card["back"] for card in cards)

@@ -203,16 +203,37 @@ async def get_flashcards(
 
 
 @router.post("/flashcards/review")
-async def review_flashcard(payload: FlashcardReviewCreate):
-    """Record flashcard quality and schedule the next review."""
+async def review_flashcard(payload: FlashcardReviewCreate, app_db: Session = Depends(get_db)):
+    """Record flashcard quality, schedule the next review, and update recall mastery."""
     try:
-        return record_flashcard_review(
+        review = record_flashcard_review(
             payload.student_id,
             payload.workspace_id,
             payload.concept_id,
             payload.card_id,
             payload.rating,
         )
+        graph_data = load_workspace_graph(app_db, payload.workspace_id)
+        is_correct = payload.rating in {"good", "easy"}
+        recall_attempt = _record_attempt(
+            QuizAttemptCreate(
+                student_id=payload.student_id,
+                topic_name=payload.concept_id,
+                question_id=f"flashcard-{payload.card_id}",
+                is_correct=is_correct,
+                error_type=None if is_correct else "Recall gap",
+                hints_used=0 if payload.rating in {"easy", "good"} else 1,
+                time_taken=20,
+                difficulty="Hard" if payload.rating == "easy" else "Medium",
+            ),
+            graph_data,
+            payload.workspace_id,
+        )
+        return {
+            **review,
+            "mastery": recall_attempt["student"]["topics"].get(payload.concept_id),
+            "adaptive_recommendation": recall_attempt.get("adaptive_recommendation"),
+        }
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
