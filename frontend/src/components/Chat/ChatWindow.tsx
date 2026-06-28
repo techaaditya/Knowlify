@@ -224,10 +224,14 @@ const FlashcardWidget: React.FC<FlashcardWidgetProps> = ({ cards, onSelfAttempt 
   };
 
   return (
-    <div style={{ background: '#FFF', border: '1px solid var(--border-soft)', borderRadius: 12, padding: 12, marginTop: 10, maxWidth: 360, width: '100%' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 10, color: 'var(--text-muted)', marginBottom: 8 }}>
-        <span>Interactive Flashcard</span>
-        <span>{idx + 1} / {cards.length}</span>
+    <div style={{ background: '#FFF', border: '1px solid var(--border-soft)', borderRadius: 12, padding: 14, marginTop: 10, maxWidth: 430, width: '100%', boxShadow: 'var(--shadow-sm)' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 10, color: 'var(--text-muted)', marginBottom: 10 }}>
+        <span style={{ textTransform: 'uppercase', letterSpacing: 0.8, fontWeight: 700 }}>Active Recall</span>
+        <span style={{ border: '1px solid var(--border-soft)', borderRadius: 999, padding: '2px 8px', background: 'var(--swatch-2)' }}>{idx + 1} / {cards.length}</span>
+      </div>
+
+      <div style={{ height: 5, borderRadius: 999, background: 'var(--swatch-2)', overflow: 'hidden', marginBottom: 12 }}>
+        <div style={{ height: '100%', width: `${((idx + 1) / cards.length) * 100}%`, background: 'var(--swatch-4)', transition: 'width 0.2s ease' }} />
       </div>
 
       {/* 3D card wrapper */}
@@ -236,7 +240,7 @@ const FlashcardWidget: React.FC<FlashcardWidgetProps> = ({ cards, onSelfAttempt 
         style={{
           perspective: 1000,
           cursor: 'pointer',
-          height: 140,
+          height: 170,
           marginBottom: 12,
         }}
       >
@@ -252,9 +256,9 @@ const FlashcardWidget: React.FC<FlashcardWidgetProps> = ({ cards, onSelfAttempt 
           <div style={{
             position: 'absolute', width: '100%', height: '100%',
             backfaceVisibility: 'hidden',
-            background: 'var(--swatch-2)', border: '1px dashed var(--border-medium)',
-            borderRadius: 8, padding: 16, display: 'flex', alignItems: 'center', justifyContent: 'center',
-            textAlign: 'center', fontSize: '13px', fontWeight: 500, color: 'var(--text-primary)',
+            background: 'linear-gradient(135deg, #ffffff 0%, #f7f4ee 100%)', border: '1px solid var(--border-soft)',
+            borderRadius: 10, padding: 18, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            textAlign: 'center', fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)', boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.7)',
           }}>
             {card.front}
           </div>
@@ -263,9 +267,9 @@ const FlashcardWidget: React.FC<FlashcardWidgetProps> = ({ cards, onSelfAttempt 
             position: 'absolute', width: '100%', height: '100%',
             backfaceVisibility: 'hidden',
             transform: 'rotateY(180deg)',
-            background: 'var(--bg-hover)', border: '1.5px solid var(--swatch-4)',
-            borderRadius: 8, padding: 16, display: 'flex', alignItems: 'center', justifyContent: 'center',
-            textAlign: 'center', fontSize: '12px', color: 'var(--text-primary)', overflowY: 'auto',
+            background: 'linear-gradient(135deg, #fffdf8 0%, #f4eadc 100%)', border: '1.5px solid var(--swatch-4)',
+            borderRadius: 10, padding: 18, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            textAlign: 'center', fontSize: '13px', color: 'var(--text-primary)', overflowY: 'auto', lineHeight: 1.55,
           }}>
             {card.back}
           </div>
