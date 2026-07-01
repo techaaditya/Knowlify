@@ -247,10 +247,47 @@ def generative_suggestions(
     return suggestions
 
 
+def revision_plan(student_profile: dict, due_flashcards: list[dict] | None = None) -> list[dict]:
+    due_flashcards = due_flashcards or []
+    today_items = []
+    now = datetime.now().date()
+    for concept_id, topic in student_profile.get("topics", {}).items():
+        review_date = topic.get("next_review_date")
+        if not review_date:
+            continue
+        try:
+            due_date = datetime.strptime(review_date, "%Y-%m-%d").date()
+        except ValueError:
+            continue
+        if due_date <= now:
+            today_items.append(
+                {
+                    "type": "concept_review",
+                    "concept_id": concept_id,
+                    "next_review_date": review_date,
+                    "reason": f"{concept_id} is due for spaced review.",
+                }
+            )
+
+    for record in due_flashcards:
+        today_items.append(
+            {
+                "type": "flashcard_review",
+                "concept_id": record["concept_id"],
+                "card_id": record["card_id"],
+                "next_review_date": record["next_review_date"],
+                "reason": f"Flashcard was rated {record['rating']} and is due again.",
+            }
+        )
+    return today_items
+
+
 def build_dashboard_summary(
     student_profile: dict,
     graph_data: dict,
     adaptive_recommendation: Optional[dict] = None,
+    due_flashcards: Optional[list[dict]] = None,
+    source_summary: Optional[dict] = None,
 ) -> dict[str, Any]:
     weak_areas = weak_area_ranking(student_profile, graph_data)
     misconceptions = misconception_ranking(student_profile)
@@ -262,6 +299,8 @@ def build_dashboard_summary(
         "learning_velocity": learning_velocity(student_profile),
         "study_heatmap": study_heatmap(student_profile),
         "context_graph": graph_summary(graph_data, student_profile),
+        "source_organization": source_summary or {},
+        "revision_plan": revision_plan(student_profile, due_flashcards),
         "adaptive_recommendation": adaptive_recommendation,
         "generative_suggestions": generative_suggestions(
             student_profile,

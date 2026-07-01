@@ -128,12 +128,13 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onLearningAction, 
   const studentId = useUserStore((state) => state.studentId);
   const workspace = useWorkspaceStore((state) => state.workspace);
   const [dashboard, setDashboard] = useState<DashboardEngineSummary | null>(null);
+  const [scope, setScope] = useState<'workspace' | 'overall'>('workspace');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     setLoading(true);
-    getDashboardEngineSummary(studentId, workspace?.id)
+    getDashboardEngineSummary(studentId, workspace?.id, scope)
       .then((data) => {
         setDashboard(data);
         setError(null);
@@ -144,7 +145,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onLearningAction, 
       .finally(() => {
         setLoading(false);
       });
-  }, [studentId, workspace?.id]);
+  }, [studentId, workspace?.id, scope]);
 
   const masteryBars = useMemo(() => {
     if (!dashboard) return [];
@@ -171,7 +172,11 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onLearningAction, 
       <div className="dashboard-header">
         <div className="header-title">
           <h2>Dashboard Engine</h2>
-          <p>Unified analytics from Student Model, Context Graph, Adaptive Engine, and Generative suggestions</p>
+          <p>{scope === 'overall' ? 'Overall analysis across all learning folders' : `Analysis for ${workspace?.name || 'the active learning folder'}`}</p>
+        </div>
+        <div className="flex gap-2">
+          <button type="button" className={`btn ${scope === 'workspace' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setScope('workspace')}>This Folder</button>
+          <button type="button" className={`btn ${scope === 'overall' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setScope('overall')}>Overall</button>
         </div>
         <div className="global-stats">
           <div className="stat-box">
@@ -205,6 +210,70 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onLearningAction, 
         <div className="metric-card">
           <span className="metric-value">{summary.hint_dependency}</span>
           <span className="metric-label">Hints / Attempt</span>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        <div className="card">
+          <div className="card-header">
+            <h3>Revision Planner</h3>
+            <span className="badge">{dashboard.revision_plan.length} due</span>
+          </div>
+          {dashboard.revision_plan.length ? (
+            <div className="space-y-3">
+              {dashboard.revision_plan.slice(0, 5).map((item) => (
+                <div key={`${item.type}-${item.concept_id}-${item.card_id || item.next_review_date}`} className="recommendation-box">
+                  <strong>{item.concept_id}</strong>
+                  <p>{item.reason}</p>
+                  <p className="text-theme-muted">Due: {item.next_review_date}</p>
+                  <button
+                    type="button"
+                    className="btn btn-secondary mt-3"
+                    onClick={() => onLearningAction(item.type === 'flashcard_review' ? 'flashcards' : 'quiz', item.concept_id)}
+                  >
+                    {item.type === 'flashcard_review' ? 'Review Flashcards' : 'Start Review Quiz'}
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-theme-muted">No review items are due right now.</p>
+          )}
+        </div>
+
+        <div className="card">
+          <div className="card-header">
+            <h3>Source Organization</h3>
+            <span className="badge">{scope === 'overall' ? 'All Folders' : 'This Folder'}</span>
+          </div>
+          <div className="knowledge-metrics-grid">
+            <div className="metric-item">
+              <span className="metric-label">Sources</span>
+              <span className="metric-value">{dashboard.source_organization.total_sources ?? dashboard.source_organization.workspace_count ?? 0}</span>
+            </div>
+            <div className="metric-item">
+              <span className="metric-label">Processed</span>
+              <span className="metric-value">{dashboard.source_organization.completed_sources ?? '-'}</span>
+            </div>
+            <div className="metric-item">
+              <span className="metric-label">Chunks</span>
+              <span className="metric-value">{dashboard.source_organization.total_chunks ?? '-'}</span>
+            </div>
+            <div className="metric-item">
+              <span className="metric-label">Relations</span>
+              <span className="metric-value">{dashboard.source_organization.total_relationships ?? '-'}</span>
+            </div>
+          </div>
+          {dashboard.source_organization.source_types && (
+            <div className="mt-4 space-y-2">
+              {Object.entries(dashboard.source_organization.source_types).map(([type, count]) => (
+                <div key={type} className="weak-chart-row">
+                  <div className="weak-chart-label"><strong>{type.toUpperCase()}</strong><span>{count} source(s)</span></div>
+                  <div className="weak-chart-track"><div className="weak-chart-fill" style={{ width: `${Math.min(100, count * 20)}%` }} /><span>{count}</span></div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
