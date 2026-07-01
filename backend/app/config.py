@@ -8,6 +8,7 @@ class Settings:
     OLLAMA_BASE_URL: str = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1")
     OLLAMA_API_KEY: str = os.getenv("OLLAMA_API_KEY", "ollama")
     CHAT_API_KEY: str = os.getenv("CHAT_API_KEY", os.getenv("OLLAMA_API_KEY", "ollama"))
+    CHATBOT_API_KEY: str = os.getenv("CHATBOT_API_KEY", "")
     CHAT_MODEL: str = os.getenv("CHAT_MODEL", "gpt-oss:120b-cloud")
     ADAPTIVE_API_KEY: str = os.getenv("ADAPTIVE_API_KEY", "")
     DATABASE_URL: str = os.getenv("DATABASE_URL", "postgresql://postgres:postgrespassword@localhost:5432/knowlify")

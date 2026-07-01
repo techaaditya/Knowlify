@@ -37,11 +37,13 @@ export const App: React.FC = () => {
   const fetchStudentData = useUserStore((state) => state.fetchStudentData);
 
   const currentCourse = useStudyStore((state) => state.currentCourse);
-  const setCourse = useStudyStore((state) => state.setCourse);
   const fetchGraphData = useStudyStore((state) => state.fetchGraphData);
   const setSelectedNodeId = useStudyStore((state) => state.setSelectedNodeId);
 
   const workspace = useWorkspaceStore((s) => s.workspace);
+  const workspaces = useWorkspaceStore((s) => s.workspaces);
+  const setWorkspace = useWorkspaceStore((s) => s.setWorkspace);
+  const createWorkspace = useWorkspaceStore((s) => s.createWorkspace);
   const refreshAll = useWorkspaceStore((s) => s.refreshAll);
 
   const selectedSourceIds = useSourcesStore((s) => s.selectedSourceIds);
@@ -104,6 +106,11 @@ export const App: React.FC = () => {
     setActiveTab(tab);
   };
 
+  const handleCreateWorkspace = async () => {
+    const name = window.prompt('Name this learning folder');
+    if (name?.trim()) await createWorkspace(name.trim());
+  };
+
   const handleChatAction = (conceptId?: string | null, mode?: string) => {
     if (conceptId) setSelectedNodeId(conceptId);
     setChatInitPayload({ conceptId, mode });
@@ -136,17 +143,18 @@ export const App: React.FC = () => {
             ))}
           </ul>
 
-          <div className="nav-label">Graph Source</div>
+          <div className="nav-label">Learning Folder</div>
           <div className="course-selector-container">
-            <label htmlFor="course-select">Active Graph</label>
+            <label htmlFor="course-select">Active Workspace</label>
             <select
               id="course-select"
               className="course-dropdown"
-              value={currentCourse}
-              onChange={(e) => setCourse(e.target.value)}
+              value={workspace?.id || ''}
+              onChange={(e) => setWorkspace(e.target.value)}
             >
-              <option value="Workspace">Workspace Sources</option>
+              {workspaces.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
             </select>
+            <button type="button" className="btn btn-secondary mt-2 w-full" onClick={handleCreateWorkspace}>New Folder</button>
           </div>
 
           {studentData && (

@@ -57,9 +57,26 @@ def _get_chat_client() -> OpenAI:
     )
 
 
-def build_source_context(sources: list[dict], concept_id: str | None) -> str:
+def build_source_context(
+    sources: list[dict],
+    concept_id: str | None,
+    retrieved_chunks: list[dict] | None = None,
+) -> str:
     """Extract relevant text snippets from selected sources for grounding."""
     context_parts = []
+
+    if retrieved_chunks:
+        for chunk in retrieved_chunks:
+            name = chunk.get("source_name", "Unknown Source")
+            page = chunk.get("page_number")
+            page_label = f", page {page}" if page else ""
+            snippet = chunk.get("snippet", "")
+            keywords = chunk.get("keywords") or []
+            context_parts.append(
+                f"[Relevant source: {name}{page_label}]\n"
+                f"Snippet: {snippet}\n"
+                f"Matched keywords: {', '.join(keywords)}"
+            )
 
     for source in sources:
         name = source.get("source_name", "Unknown Source")
@@ -73,8 +90,8 @@ def build_source_context(sources: list[dict], concept_id: str | None) -> str:
         if key_topics:
             context_parts.append(f"Key topics in '{name}': {', '.join(key_topics)}")
 
-        # Include a relevant portion of the extracted text
-        if extracted_text:
+        # Keep full-source fallback short because ranked chunks are preferred.
+        if extracted_text and not retrieved_chunks:
             # Limit to first 2000 chars to stay within token budgets
             snippet = extracted_text[:2000]
             if len(extracted_text) > 2000:
@@ -82,6 +99,46 @@ def build_source_context(sources: list[dict], concept_id: str | None) -> str:
             context_parts.append(f"Content from '{name}':\n{snippet}")
 
     return "\n\n".join(context_parts) if context_parts else ""
+
+
+def generate_fallback_chat_response(
+    message: str,
+    mode: str = "explain",
+    source_context: str = "",
+    graph_context: str = "",
+    student_context: str = "",
+    concept_name: str | None = None,
+) -> str:
+    """Deterministic response used when Ollama/LLM is unavailable."""
+    concept_label = concept_name or "this topic"
+    parts = [
+        "I could not reach the local tutoring model, so I am using Knowlify's source-based fallback.",
+        f"For **{concept_label}**, I will stay close to the uploaded source and your learning data.",
+    ]
+
+    if source_context:
+        first_source = source_context.split("\n\n")[0]
+        parts.append(f"Most relevant source evidence:\n{first_source[:900]}")
+    elif graph_context:
+        parts.append(f"Knowledge graph signal:\n{graph_context}")
+
+    if "misconception" in student_context.lower() or "error patterns" in student_context.lower():
+        parts.append(
+            "Your Student Model shows repeated error patterns, so the next response should focus on the misconception before adding harder practice."
+        )
+    elif student_context:
+        parts.append(f"Student/adaptive signal:\n{student_context[:650]}")
+
+    if mode == "test":
+        parts.append(f"Practice prompt: explain {concept_label} in your own words, then compare your answer with the source evidence above.")
+    elif mode == "flashcard":
+        parts.append(f"Flashcard: What is the key idea of {concept_label}?\nAnswer: Use the source evidence above to state the definition and why it matters.")
+    elif mode == "socratic":
+        parts.append(f"Guiding question: What part of the source evidence tells you why {concept_label} matters?")
+    else:
+        parts.append(f"Recommended next step: review the evidence, then ask for a quiz or flashcards on {concept_label}.")
+
+    return "\n\n".join(parts)
 
 
 def build_graph_context(graph_data: dict, concept_id: str | None) -> str:

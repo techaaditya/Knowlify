@@ -2,12 +2,20 @@ import axios from 'axios';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 const ADAPTIVE_API_KEY = import.meta.env.VITE_ADAPTIVE_API_KEY;
+const CHATBOT_API_KEY = import.meta.env.VITE_CHATBOT_API_KEY;
 
 const client = axios.create({
   baseURL: API_URL,
   headers: {
     'Content-Type': 'application/json',
   },
+});
+
+client.interceptors.request.use((config) => {
+  if (CHATBOT_API_KEY && config.url?.startsWith('/api/chat')) {
+    config.headers['X-Chatbot-API-Key'] = CHATBOT_API_KEY;
+  }
+  return config;
 });
 
 export default client;
@@ -87,6 +95,25 @@ export interface DashboardEngineSummary {
     bottlenecks: Array<{ concept_id: string; weak_prerequisites: string[] }>;
     source: string;
   };
+  source_organization: {
+    total_sources?: number;
+    completed_sources?: number;
+    processing_sources?: number;
+    failed_sources?: number;
+    total_chunks?: number;
+    total_entities?: number;
+    total_relationships?: number;
+    workspace_count?: number;
+    mode?: string;
+    source_types?: Record<string, number>;
+  };
+  revision_plan: Array<{
+    type: string;
+    concept_id: string;
+    card_id?: string;
+    next_review_date: string;
+    reason: string;
+  }>;
   adaptive_recommendation: AdaptiveRecommendation | null;
   generative_suggestions: Array<{
     type: string;
@@ -97,12 +124,12 @@ export interface DashboardEngineSummary {
   engine_connections: string[];
 }
 
-export const getDashboardEngineSummary = async (studentId: string, workspaceId?: string) => {
-  if (!workspaceId) {
+export const getDashboardEngineSummary = async (studentId: string, workspaceId?: string, scope: 'workspace' | 'overall' = 'workspace') => {
+  if (scope === 'workspace' && !workspaceId) {
     throw new Error('Select a workspace to view learning analytics.');
   }
   const response = await client.get<DashboardEngineSummary>(`/api/dashboard/student/${studentId}`, {
-    params: { workspace_id: workspaceId },
+    params: { workspace_id: workspaceId, scope },
   });
   return response.data;
 };
@@ -110,20 +137,33 @@ export const getDashboardEngineSummary = async (studentId: string, workspaceId?:
 export interface GeneratedQuizQuestion {
   id: string;
   concept_id: string;
+  question_type: 'multiple_choice' | 'short_answer';
+  difficulty: string;
   prompt: string;
   options: string[];
+  evidence?: string | null;
+  source_name?: string | null;
 }
 
 export interface GeneratedFlashcard {
   id: string;
   front: string;
   back: string;
+  difficulty?: string;
+  source_name?: string | null;
 }
 
-export const generateWorkspaceQuiz = async (workspaceId: string, conceptId: string) => {
+export const generateWorkspaceQuiz = async (
+  workspaceId: string,
+  conceptId: string,
+  questionMode: 'mixed' | 'mcq' | 'short_answer' = 'mixed',
+  difficulty: 'Easy' | 'Medium' | 'Hard' = 'Medium',
+) => {
   const response = await client.post<{ concept_id: string; title: string; instructions: string; questions: GeneratedQuizQuestion[] }>('/api/quiz/generate', {
     workspace_id: workspaceId,
     concept_id: conceptId,
+    question_mode: questionMode,
+    difficulty,
   });
   return response.data;
 };
@@ -132,16 +172,21 @@ export const answerGeneratedQuiz = async (payload: {
   student_id: string;
   workspace_id: string;
   question_id: string;
-  selected_option: number;
+  selected_option?: number | null;
+  answer_text?: string;
   hints_used: number;
   time_taken: number;
+  difficulty: 'Easy' | 'Medium' | 'Hard';
 }) => {
   const response = await client.post<{
     success: boolean;
     student: unknown;
     is_correct: boolean;
+    selected_answer: string;
     correct_answer: string;
     explanation: string;
+    evidence?: string | null;
+    source_name?: string | null;
     adaptive_recommendation?: AdaptiveRecommendation | null;
   }>('/api/quiz/answer', payload);
   return response.data;
@@ -150,6 +195,24 @@ export const answerGeneratedQuiz = async (payload: {
 export const getGeneratedFlashcards = async (workspaceId: string, conceptId: string, count = 4) => {
   const response = await client.get<{ concept_id: string; cards: GeneratedFlashcard[] }>('/api/flashcards', {
     params: { workspace_id: workspaceId, concept_id: conceptId, count },
+  });
+  return response.data;
+};
+
+export const reviewGeneratedFlashcard = async (payload: {
+  student_id: string;
+  workspace_id: string;
+  concept_id: string;
+  card_id: string;
+  rating: 'again' | 'hard' | 'good' | 'easy';
+}) => {
+  const response = await client.post('/api/flashcards/review', payload);
+  return response.data;
+};
+
+export const getDueFlashcards = async (studentId: string, workspaceId?: string) => {
+  const response = await client.get<{ student_id: string; due_reviews: unknown[] }>('/api/flashcards/due', {
+    params: { student_id: studentId, workspace_id: workspaceId },
   });
   return response.data;
 };

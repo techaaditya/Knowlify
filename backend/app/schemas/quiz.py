@@ -12,17 +12,30 @@ class QuizAttemptCreate(BaseModel):
     error_type: Optional[str] = None
     hints_used: int = 0
     time_taken: int = 45
+    difficulty: str = Field(default="Medium", pattern="^(Easy|Medium|Hard|easy|medium|hard)$")
 
 
 class QuizGenerateRequest(BaseModel):
     workspace_id: str
     concept_id: str
+    question_mode: str = Field(default="mixed", pattern="^(mixed|mcq|short_answer)$")
+    difficulty: str = Field(default="Medium", pattern="^(Easy|Medium|Hard|easy|medium|hard)$")
 
 
 class GeneratedQuizAnswer(BaseModel):
     student_id: str
     workspace_id: str
     question_id: str
-    selected_option: int = Field(ge=0, le=3)
+    selected_option: Optional[int] = Field(default=None, ge=0, le=3)
+    answer_text: Optional[str] = None
     hints_used: int = Field(default=0, ge=0, le=5)
     time_taken: int = Field(default=45, ge=1, le=900)
+    difficulty: str = Field(default="Medium", pattern="^(Easy|Medium|Hard|easy|medium|hard)$")
+
+
+class FlashcardReviewCreate(BaseModel):
+    student_id: str
+    workspace_id: str
+    concept_id: str
+    card_id: str
+    rating: str = Field(pattern="^(again|hard|good|easy)$")

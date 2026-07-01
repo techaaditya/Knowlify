@@ -18,6 +18,13 @@ interface QuizItem {
   options: string[];
 }
 
+interface SuggestedAction {
+  label: string;
+  mode: ModeId;
+  target_concept?: string | null;
+  message: string;
+}
+
 interface ChatMessage {
   id: string;
   role: 'user' | 'assistant';
@@ -30,6 +37,7 @@ interface ChatMessage {
   quizAnswered?: boolean;
   selectedQuizOption?: number | null;
   quizResult?: { is_correct: boolean; explanation: string; correct_answer: string } | null;
+  suggestedActions?: SuggestedAction[];
 }
 
 interface Props {
@@ -80,7 +88,6 @@ function renderMarkdown(text: string): React.ReactNode[] {
   const lines = text.split('\n');
   const elements: React.ReactNode[] = [];
   let listItems: string[] = [];
-  let inList = false;
 
   const flushList = () => {
     if (listItems.length > 0) {
@@ -94,7 +101,6 @@ function renderMarkdown(text: string): React.ReactNode[] {
         </ul>
       );
       listItems = [];
-      inList = false;
     }
   };
 
@@ -110,7 +116,6 @@ function renderMarkdown(text: string): React.ReactNode[] {
         </p>
       );
     } else if (/^[-*•]\s/.test(line)) {
-      inList = true;
       listItems.push(line);
     } else if (/^\d+\.\s/.test(line)) {
       flushList();
@@ -219,10 +224,14 @@ const FlashcardWidget: React.FC<FlashcardWidgetProps> = ({ cards, onSelfAttempt 
   };
 
   return (
-    <div style={{ background: '#FFF', border: '1px solid var(--border-soft)', borderRadius: 12, padding: 12, marginTop: 10, maxWidth: 360, width: '100%' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 10, color: 'var(--text-muted)', marginBottom: 8 }}>
-        <span>Interactive Flashcard</span>
-        <span>{idx + 1} / {cards.length}</span>
+    <div style={{ background: '#FFF', border: '1px solid var(--border-soft)', borderRadius: 12, padding: 14, marginTop: 10, maxWidth: 430, width: '100%', boxShadow: 'var(--shadow-sm)' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 10, color: 'var(--text-muted)', marginBottom: 10 }}>
+        <span style={{ textTransform: 'uppercase', letterSpacing: 0.8, fontWeight: 700 }}>Active Recall</span>
+        <span style={{ border: '1px solid var(--border-soft)', borderRadius: 999, padding: '2px 8px', background: 'var(--swatch-2)' }}>{idx + 1} / {cards.length}</span>
+      </div>
+
+      <div style={{ height: 5, borderRadius: 999, background: 'var(--swatch-2)', overflow: 'hidden', marginBottom: 12 }}>
+        <div style={{ height: '100%', width: `${((idx + 1) / cards.length) * 100}%`, background: 'var(--swatch-4)', transition: 'width 0.2s ease' }} />
       </div>
 
       {/* 3D card wrapper */}
@@ -231,7 +240,7 @@ const FlashcardWidget: React.FC<FlashcardWidgetProps> = ({ cards, onSelfAttempt 
         style={{
           perspective: 1000,
           cursor: 'pointer',
-          height: 140,
+          height: 170,
           marginBottom: 12,
         }}
       >
@@ -247,9 +256,9 @@ const FlashcardWidget: React.FC<FlashcardWidgetProps> = ({ cards, onSelfAttempt 
           <div style={{
             position: 'absolute', width: '100%', height: '100%',
             backfaceVisibility: 'hidden',
-            background: 'var(--swatch-2)', border: '1px dashed var(--border-medium)',
-            borderRadius: 8, padding: 16, display: 'flex', alignItems: 'center', justifyContent: 'center',
-            textAlign: 'center', fontSize: '13px', fontWeight: 500, color: 'var(--text-primary)',
+            background: 'linear-gradient(135deg, #ffffff 0%, #f7f4ee 100%)', border: '1px solid var(--border-soft)',
+            borderRadius: 10, padding: 18, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            textAlign: 'center', fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)', boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.7)',
           }}>
             {card.front}
           </div>
@@ -258,9 +267,9 @@ const FlashcardWidget: React.FC<FlashcardWidgetProps> = ({ cards, onSelfAttempt 
             position: 'absolute', width: '100%', height: '100%',
             backfaceVisibility: 'hidden',
             transform: 'rotateY(180deg)',
-            background: 'var(--bg-hover)', border: '1.5px solid var(--swatch-4)',
-            borderRadius: 8, padding: 16, display: 'flex', alignItems: 'center', justifyContent: 'center',
-            textAlign: 'center', fontSize: '12px', color: 'var(--text-primary)', overflowY: 'auto',
+            background: 'linear-gradient(135deg, #fffdf8 0%, #f4eadc 100%)', border: '1.5px solid var(--swatch-4)',
+            borderRadius: 10, padding: 18, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            textAlign: 'center', fontSize: '13px', color: 'var(--text-primary)', overflowY: 'auto', lineHeight: 1.55,
           }}>
             {card.back}
           </div>
@@ -410,9 +419,6 @@ export const ChatWindow: React.FC<Props> = ({
   const textInputRef = useRef<HTMLTextAreaElement>(null);
   const historyRef = useRef<{ role: string; content: string }[]>([]);
 
-  // Local mastery tracking
-  const currentMastery = studentData?.topics[activeConceptId]?.mastery_score || 0;
-
   // Auto-scroll
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -471,7 +477,7 @@ export const ChatWindow: React.FC<Props> = ({
         source_ids: sourceIds,
       });
 
-      const { reply, sources_used, mastery, recommendation, misconceptions, flashcards, quiz } = res.data;
+      const { reply, sources_used, mastery, flashcards, quiz, suggested_actions } = res.data;
 
       historyRef.current.push({ role: 'user', content: text });
       historyRef.current.push({ role: 'assistant', content: reply });
@@ -479,7 +485,7 @@ export const ChatWindow: React.FC<Props> = ({
       const botMsg: ChatMessage = {
         id: uid(), role: 'assistant', content: reply,
         mode: activeMode, sourcesUsed: sources_used || [], mastery,
-        flashcards, quiz,
+        flashcards, quiz, suggestedActions: suggested_actions || [],
       };
 
       setMessages(prev => [...prev, botMsg]);
@@ -506,6 +512,7 @@ export const ChatWindow: React.FC<Props> = ({
         answer: String(optIdx),
         question_id: questionId,
         question_context: prompt,
+        difficulty: 'Medium',
       });
 
       const { is_correct, explanation, correct_answer } = res.data;
@@ -564,6 +571,14 @@ export const ChatWindow: React.FC<Props> = ({
 
   const handleClearConcept = () => {
     setSelectedNodeId(null);
+  };
+
+  const handleSuggestedAction = (action: SuggestedAction) => {
+    if (action.target_concept) {
+      setSelectedNodeId(action.target_concept);
+    }
+    setMode(action.mode);
+    sendMessage(action.message, action.mode);
   };
 
   const copyToClipboard = (text: string) => {
@@ -730,8 +745,33 @@ export const ChatWindow: React.FC<Props> = ({
                     answered={Boolean(msg.quizAnswered)}
                     selectedOption={msg.selectedQuizOption ?? null}
                     result={msg.quizResult}
-                    onAnswer={(optIdx) => handleAnswerQuiz(msg.id, msg.quiz.id, optIdx, msg.quiz.prompt)}
+                    onAnswer={(optIdx) => {
+                      if (msg.quiz) handleAnswerQuiz(msg.id, msg.quiz.id, optIdx, msg.quiz.prompt);
+                    }}
                   />
+                )}
+
+                {msg.role === 'assistant' && msg.suggestedActions && msg.suggestedActions.length > 0 && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 10, borderTop: '1px solid var(--border-faint)', paddingTop: 10 }}>
+                    {msg.suggestedActions.map((action) => (
+                      <button
+                        key={`${msg.id}-${action.label}`}
+                        onClick={() => handleSuggestedAction(action)}
+                        style={{
+                          padding: '6px 10px',
+                          borderRadius: 16,
+                          border: '1px solid var(--swatch-3)',
+                          background: 'var(--swatch-2)',
+                          color: 'var(--text-primary)',
+                          fontSize: 11,
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {action.label}
+                      </button>
+                    ))}
+                  </div>
                 )}
               </div>
 
@@ -774,7 +814,6 @@ export const ChatWindow: React.FC<Props> = ({
           ref={textInputRef}
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          onKeyDown={handleClearConcept}
           placeholder={
             mode === 'test' 
               ? 'Select an option above to answer the quiz!' 

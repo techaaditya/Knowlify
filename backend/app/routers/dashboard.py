@@ -9,6 +9,10 @@ from ..engines.adaptive.database import SessionLocal
 from ..engines.cognitive.student_model import StudentModelingEngine
 from ..engines.dashboard.dashboard_engine import build_dashboard_summary
 from ..services.workspace_graph import graph_has_data, load_workspace_graph
+from ..services.student_workspace_data import filter_profile_for_workspace
+from ..services.source_grounding import workspace_source_summary
+from ..services.spaced_repetition import due_flashcard_reviews
+from ..models.workspace import Workspace
 
 router = APIRouter(prefix="/api/dashboard", tags=["dashboard"])
 
@@ -49,10 +53,23 @@ def choose_recommendation_concept(student_profile: dict, graph_data: dict) -> st
     return None
 
 
+def load_all_workspace_graphs(db: Session) -> dict:
+    """Merge every real workspace graph for the learner's overall analysis."""
+    from ..engines.ingestion.graph_integration import merge_workspace_graph
+
+    merged = None
+    for workspace in db.query(Workspace).all():
+        graph = load_workspace_graph(db, workspace.id)
+        if graph_has_data(graph):
+            merged = merge_workspace_graph(merged, graph)
+    return merged or {"nodes": [], "edges": []}
+
+
 @router.get("/student/{student_id}")
 async def get_student_dashboard(
     student_id: str,
-    workspace_id: str = Query(..., description="Workspace containing the uploaded learning sources."),
+    workspace_id: str | None = Query(default=None, description="Workspace for focused analysis."),
+    scope: str = Query(default="workspace", pattern="^(workspace|overall)$"),
     app_db: Session = Depends(get_db),
 ):
     try:
@@ -62,7 +79,20 @@ async def get_student_dashboard(
             if student_id in cognitive_engine.students
             else empty_student_profile(student_id)
         )
-        context_graph = load_workspace_graph(app_db, workspace_id)
+        if scope == "workspace":
+            if not workspace_id:
+                raise HTTPException(status_code=422, detail="workspace_id is required for workspace analysis.")
+            context_graph = load_workspace_graph(app_db, workspace_id)
+            student_profile = filter_profile_for_workspace(student_profile, workspace_id, context_graph)
+            source_summary = workspace_source_summary(app_db, workspace_id)
+            due_reviews = due_flashcard_reviews(student_id, workspace_id)
+        else:
+            context_graph = load_all_workspace_graphs(app_db)
+            source_summary = {
+                "workspace_count": app_db.query(Workspace).count(),
+                "mode": "overall",
+            }
+            due_reviews = due_flashcard_reviews(student_id)
         graph_data = context_graph if graph_has_data(context_graph) else {"nodes": [], "edges": []}
         concept_id = choose_recommendation_concept(student_profile, graph_data)
 
@@ -80,6 +110,8 @@ async def get_student_dashboard(
                 student_profile,
                 graph_data,
                 adaptive_recommendation=recommendation.model_dump() if recommendation else None,
+                due_flashcards=due_reviews,
+                source_summary=source_summary,
             )
         finally:
             db.close()
