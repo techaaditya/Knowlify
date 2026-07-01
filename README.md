@@ -162,6 +162,62 @@ docker-compose up --build
 
 ---
 
+### 🐘 5. Setting Up PostgreSQL (Local Database)
+
+By default the backend falls back to a local **SQLite** file (`knowlify.db`) if PostgreSQL is unavailable.
+To use the full PostgreSQL database, follow these steps:
+
+#### Step 1: Install PostgreSQL
+1. Download the installer from [https://www.postgresql.org/download/windows/](https://www.postgresql.org/download/windows/)
+2. Run the installer and follow the wizard:
+   - **Remember the password** you set for the `postgres` superuser — you'll need it for the `.env` file.
+   - Keep the default port **5432**.
+   - When prompted for components, include **pgAdmin 4** (optional but useful).
+3. After installation, make sure the PostgreSQL service is running:
+   ```powershell
+   Get-Service -Name "postgresql*"
+   # Should show Status = Running
+   ```
+
+#### Step 2: Install the Python Driver
+```powershell
+cd backend
+.\venv\Scripts\Activate.ps1
+pip install psycopg2-binary
+```
+
+#### Step 3: Configure `.env`
+Open `backend/.env` and set `DATABASE_URL` with your actual postgres password:
+```env
+DATABASE_URL=postgresql://postgres:YOUR_ACTUAL_PASSWORD@localhost:5432/knowlify
+```
+
+#### Step 4: Run the Setup Script
+```powershell
+cd backend
+python setup_postgres.py
+```
+This will:
+- ✅ Connect to PostgreSQL
+- ✅ Create the `knowlify` database
+- ✅ Enable the `uuid-ossp` extension
+- ✅ Create all 13 tables automatically
+
+#### Step 5: Verify
+Start the backend and look for the log line:
+```
+[database] Initialised 13 tables on postgresql
+```
+If you see `on sqlite` instead, double-check that `psycopg2-binary` is installed and your password is correct.
+
+> [!NOTE]
+> **Database Schema:** The PostgreSQL schema includes 13 tables:
+> `workspaces`, `sources`, `source_chunks`, `processing_logs`, `users`, `documents`,
+> `concepts`, `concept_prerequisites`, `topic_mastery`, `quiz_attempts`,
+> `interaction_events`, `flashcards`, `chat_messages`
+
+---
+
 ## 🧠 The 5 AI Engines
 
 | Engine | Name | Description | Status |
