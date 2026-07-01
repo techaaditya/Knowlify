@@ -63,7 +63,21 @@ Follow these steps to run the backend and frontend servers on your local Windows
 ### 📋 Prerequisites
 - **Python 3.11+** (Make sure Python is added to your system PATH)
 - **Node.js 18+** (Includes `npm`)
-- **Ollama** running locally (Optional, falls back to heuristic keyword extraction if not running)
+- **Ollama** running locally. Follow these steps to set it up:
+  1. **Start the Ollama Daemon:** Ensure Ollama is running on your machine. You can start it via the desktop app icon (which sits in your system tray) or by running:
+     ```powershell
+     ollama serve
+     ```
+  2. **Download Models (First Time Only):** You only need to run the pull commands once. Once downloaded, the models are cached locally:
+     ```powershell
+     ollama pull nomic-embed-text
+     ollama pull gpt-oss:120b-cloud
+     ```
+  3. **Leave it active:** Keep the Ollama application or daemon running in the background whenever you run the FastAPI backend.
+
+> [!NOTE]
+> **Hugging Face Hub (`HF_TOKEN`) Warning:** When starting the backend, you might see a warning: *\"You are sending unauthenticated requests to the HF Hub... Please set a HF_TOKEN...\"*
+> This is a standard notice from Hugging Face's `huggingface_hub` package which is used by KeyBERT to download model weights (`all-MiniLM-L6-v2`) locally. It is **completely harmless** and can be ignored. You do not need to configure any HF token.
 
 ---
 
