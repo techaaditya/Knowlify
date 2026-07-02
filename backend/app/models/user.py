@@ -1,15 +1,13 @@
-# SQLAlchemy Database Tables (PostgreSQL) - User
-# Declares columns representing core user schema profiles.
+from sqlalchemy import Column, String, DateTime
+from sqlalchemy.sql import func
+from ..database import Base
+from .types import GUID, new_uuid
 
-# from sqlalchemy import Column, Integer, String, DateTime
-# from sqlalchemy.sql import func
-# from app.database import Base
 
-class User:
-    # __tablename__ = "users"
-    # id = Column(Integer, primary_key=True, index=True)
-    # email = Column(String, unique=True, index=True, nullable=False)
-    # name = Column(String)
-    # role = Column(String, default="student")
-    # created_at = Column(DateTime(timezone=True), server_default=func.now())
-    pass
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(GUID(), primary_key=True, default=new_uuid)
+    email = Column(String(255), unique=True, nullable=False, index=True)
+    password_hash = Column(String(255), nullable=False, default="")
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
