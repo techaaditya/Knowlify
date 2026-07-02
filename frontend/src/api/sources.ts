@@ -90,6 +90,11 @@ export const getWorkspaces = async () => {
   return res.data;
 };
 
+export const createWorkspace = async (name: string) => {
+  const res = await client.post<Workspace>('/api/workspaces', { name });
+  return res.data;
+};
+
 export const getWorkspace = async (id: string) => {
   const res = await client.get<Workspace>(`/api/workspaces/${id}`);
   return res.data;

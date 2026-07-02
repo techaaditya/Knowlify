@@ -131,3 +131,213 @@ def test_move_forward_when_mastery_is_high_and_prerequisites_are_strong(db):
         "active_transport",
     )
     assert recommendation.next_action == "move_forward"
+
+
+def test_sync_from_student_model_converts_mastery_scale(db):
+    student_profile = {
+        "student_id": "S002",
+        "name": "Cognitive Student",
+        "topics": {
+            "Limits": {
+                "mastery_score": 72.5,
+                "last_revised": "2026-06-10 10:00:00",
+            },
+            "Derivatives": {
+                "mastery_score": 35,
+                "last_revised": "2026-06-10 10:05:00",
+            },
+        },
+    }
+
+    adaptive_engine.sync_from_student_model(
+        db,
+        student_profile,
+        prerequisites_by_concept={"Derivatives": ["Limits"]},
+    )
+
+    limits = (
+        db.query(models.MasteryRecord)
+        .filter(models.MasteryRecord.student_id == "S002", models.MasteryRecord.concept_id == "Limits")
+        .first()
+    )
+    derivatives = (
+        db.query(models.MasteryRecord)
+        .filter(models.MasteryRecord.student_id == "S002", models.MasteryRecord.concept_id == "Derivatives")
+        .first()
+    )
+
+    assert limits.mastery == 0.725
+    assert derivatives.mastery == 0.35
+
+
+def test_student_model_last_revised_becomes_last_practiced(db):
+    student_profile = {
+        "student_id": "S003",
+        "name": "Practice Date Student",
+        "topics": {
+            "Limits": {
+                "mastery_score": 80,
+                "last_revised": "2026-06-10 10:00:00",
+            },
+        },
+    }
+
+    adaptive_engine.sync_from_student_model(db, student_profile)
+    record = (
+        db.query(models.MasteryRecord)
+        .filter(models.MasteryRecord.student_id == "S003", models.MasteryRecord.concept_id == "Limits")
+        .first()
+    )
+
+    assert record.last_practiced.year == 2026
+    assert record.last_practiced.month == 6
+    assert record.last_practiced.day == 10
+
+
+def test_prerequisites_from_context_graph_data(db):
+    graph_data = {
+        "nodes": [
+            {"id": "Chain Rule", "prerequisites": ["Derivatives"]},
+            {"id": "Limits"},
+        ],
+        "edges": [
+            {"from": "Limits", "to": "Derivatives"},
+        ],
+    }
+
+    prerequisites = adaptive_engine.prerequisites_from_graph_data(graph_data)
+
+    assert prerequisites["Chain Rule"] == ["Derivatives"]
+    assert prerequisites["Derivatives"] == ["Limits"]
+
+
+def test_repeated_student_model_error_type_recommends_reteach(db):
+    for concept_id in ["atp", "cell_membrane", "concentration_gradient", "active_transport"]:
+        record = mastery_for(db, concept_id)
+        record.mastery = 0.75
+        record.last_practiced = datetime.now(timezone.utc)
+    db.commit()
+
+    student_profile = {
+        "student_id": "student-1",
+        "topics": {
+            "active_transport": {
+                "error_types": {"Formula mistake": 3},
+            },
+        },
+    }
+
+    recommendation = adaptive_engine.get_recommendation(
+        db,
+        "student-1",
+        "active_transport",
+        student_profile=student_profile,
+    )
+
+    assert recommendation.next_action == "reteach"
+    assert recommendation.misconception == "Formula mistake"
+    assert recommendation.recommended_concept == "active_transport"
+
+
+def test_record_attempt_from_student_model_payload_updates_adaptive_mastery(db):
+    student_profile = {
+        "student_id": "S004",
+        "name": "Attempt Sync Student",
+        "topics": {
+            "Limits": {
+                "mastery_score": 50,
+                "last_revised": "2026-06-10 10:00:00",
+            },
+        },
+    }
+    attempt_payload = {
+        "topic_name": "Limits",
+        "question_id": "Q1",
+        "is_correct": True,
+        "time_taken": 30,
+        "hints_used": 0,
+    }
+
+    record, previous_mastery = adaptive_engine.record_attempt_from_student_model_payload(
+        db,
+        student_profile,
+        attempt_payload,
+        confidence=4,
+        difficulty="medium",
+    )
+
+    assert previous_mastery == 0.5
+    assert record.mastery > previous_mastery
+
+
+def test_shared_mastery_snapshot_uses_student_model_mastery(db):
+    student_profile = {
+        "student_id": "S005",
+        "name": "Shared Mastery Student",
+        "topics": {
+            "Limits": {
+                "mastery_score": 72.5,
+                "last_revised": "2026-06-10 10:00:00",
+                "status": "learning",
+                "error_types": {"Sign error": 1},
+            },
+        },
+    }
+
+    snapshot = adaptive_engine.shared_mastery_snapshot(db, student_profile)
+
+    assert snapshot["concepts"]["Limits"]["student_model_mastery_score"] == 72.5
+    assert snapshot["concepts"]["Limits"]["adaptive_mastery"] == 0.725
+    assert snapshot["concepts"]["Limits"]["error_types"] == {"Sign error": 1}
+
+
+def test_integrated_pipeline_uses_student_model_and_context_graph(db):
+    student_profile = {
+        "student_id": "S006",
+        "name": "Integrated Student",
+        "topics": {
+            "Limits": {
+                "mastery_score": 45,
+                "last_revised": "2026-06-10 10:00:00",
+                "error_types": {},
+            },
+            "Derivatives": {
+                "mastery_score": 70,
+                "last_revised": "2026-06-10 10:05:00",
+                "error_types": {},
+            },
+        },
+    }
+    graph_data = {
+        "nodes": [{"id": "Limits"}, {"id": "Derivatives"}],
+        "edges": [{"from": "Limits", "to": "Derivatives"}],
+    }
+
+    recommendation = adaptive_engine.generate_recommendation_from_student_profile(
+        db,
+        student_profile,
+        "Derivatives",
+        graph_data,
+    )
+
+    assert recommendation.next_action == "prerequisite_review"
+    assert recommendation.weakest_prerequisite == "Limits"
+    assert recommendation.prerequisite_source == "Context Engine graph"
+    assert recommendation.readiness_score is not None
+
+
+def test_readiness_score_drops_for_misconception_and_forgetting_risk():
+    strong_score = adaptive_engine.calculate_readiness_score(
+        mastery=0.80,
+        prerequisite_mastery=0.90,
+        risk="low",
+        misconception=None,
+    )
+    risky_score = adaptive_engine.calculate_readiness_score(
+        mastery=0.80,
+        prerequisite_mastery=0.90,
+        risk="high",
+        misconception="Formula mistake",
+    )
+
+    assert risky_score < strong_score

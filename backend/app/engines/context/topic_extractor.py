@@ -15,7 +15,8 @@ def get_kw_model():
 def get_llm_client():
     return OpenAI(
         base_url=os.getenv("OLLAMA_BASE_URL"),
-        api_key=os.getenv("OLLAMA_API_KEY")
+        api_key=os.getenv("OLLAMA_API_KEY"),
+        timeout=30.0,
     )
 
 def get_heuristic_topics(text: str, keywords: list) -> dict:

@@ -63,7 +63,21 @@ Follow these steps to run the backend and frontend servers on your local Windows
 ### 📋 Prerequisites
 - **Python 3.11+** (Make sure Python is added to your system PATH)
 - **Node.js 18+** (Includes `npm`)
-- **Ollama** running locally (Optional, falls back to heuristic keyword extraction if not running)
+- **Ollama** running locally. Follow these steps to set it up:
+  1. **Start the Ollama Daemon:** Ensure Ollama is running on your machine. You can start it via the desktop app icon (which sits in your system tray) or by running:
+     ```powershell
+     ollama serve
+     ```
+  2. **Download Models (First Time Only):** You only need to run the pull commands once. Once downloaded, the models are cached locally:
+     ```powershell
+     ollama pull nomic-embed-text
+     ollama pull gpt-oss:120b-cloud
+     ```
+  3. **Leave it active:** Keep the Ollama application or daemon running in the background whenever you run the FastAPI backend.
+
+> [!NOTE]
+> **Hugging Face Hub (`HF_TOKEN`) Warning:** When starting the backend, you might see a warning: *\"You are sending unauthenticated requests to the HF Hub... Please set a HF_TOKEN...\"*
+> This is a standard notice from Hugging Face's `huggingface_hub` package which is used by KeyBERT to download model weights (`all-MiniLM-L6-v2`) locally. It is **completely harmless** and can be ignored. You do not need to configure any HF token.
 
 ---
 
@@ -145,6 +159,62 @@ If you prefer running both servers along with a PostgreSQL and Redis database in
 ```bash
 docker-compose up --build
 ```
+
+---
+
+### 🐘 5. Setting Up PostgreSQL (Local Database)
+
+By default the backend falls back to a local **SQLite** file (`knowlify.db`) if PostgreSQL is unavailable.
+To use the full PostgreSQL database, follow these steps:
+
+#### Step 1: Install PostgreSQL
+1. Download the installer from [https://www.postgresql.org/download/windows/](https://www.postgresql.org/download/windows/)
+2. Run the installer and follow the wizard:
+   - **Remember the password** you set for the `postgres` superuser — you'll need it for the `.env` file.
+   - Keep the default port **5432**.
+   - When prompted for components, include **pgAdmin 4** (optional but useful).
+3. After installation, make sure the PostgreSQL service is running:
+   ```powershell
+   Get-Service -Name "postgresql*"
+   # Should show Status = Running
+   ```
+
+#### Step 2: Install the Python Driver
+```powershell
+cd backend
+.\venv\Scripts\Activate.ps1
+pip install psycopg2-binary
+```
+
+#### Step 3: Configure `.env`
+Open `backend/.env` and set `DATABASE_URL` with your actual postgres password:
+```env
+DATABASE_URL=postgresql://postgres:YOUR_ACTUAL_PASSWORD@localhost:5432/knowlify
+```
+
+#### Step 4: Run the Setup Script
+```powershell
+cd backend
+python setup_postgres.py
+```
+This will:
+- ✅ Connect to PostgreSQL
+- ✅ Create the `knowlify` database
+- ✅ Enable the `uuid-ossp` extension
+- ✅ Create all 13 tables automatically
+
+#### Step 5: Verify
+Start the backend and look for the log line:
+```
+[database] Initialised 13 tables on postgresql
+```
+If you see `on sqlite` instead, double-check that `psycopg2-binary` is installed and your password is correct.
+
+> [!NOTE]
+> **Database Schema:** The PostgreSQL schema includes 13 tables:
+> `workspaces`, `sources`, `source_chunks`, `processing_logs`, `users`, `documents`,
+> `concepts`, `concept_prerequisites`, `topic_mastery`, `quiz_attempts`,
+> `interaction_events`, `flashcards`, `chat_messages`
 
 ---
 

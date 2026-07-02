@@ -143,11 +143,40 @@ def get_workspace_graph(
                 merged = merge_workspace_graph(merged, graph)
         return merged or {"nodes": [], "edges": []}
 
+    # First: try to read from the merged workspace description blob
     try:
         if workspace.description and workspace.description.startswith("{"):
             data = json.loads(workspace.description)
-            graph = data.get("graph", {"nodes": [], "edges": []})
-            return graph
+            graph = data.get("graph")
+            if graph and (graph.get("nodes") or graph.get("edges")):
+                return graph
     except json.JSONDecodeError:
         pass
+
+    # Fallback: aggregate graph data directly from each completed source's metadata_json.
+    # This handles sources that were processed before the workspace graph-merge logic existed.
+    all_sources = (
+        db.query(Source)
+        .filter(Source.workspace_id == workspace_id, Source.processing_status == "completed")
+        .all()
+    )
+    merged = None
+    for s in all_sources:
+        graph = (s.metadata_json or {}).get("graph")
+        if graph:
+            merged = merge_workspace_graph(merged, graph)
+
+    if merged:
+        # Persist the merged graph back into workspace.description so future requests are instant
+        try:
+            existing_desc = {}
+            if workspace.description and workspace.description.startswith("{"):
+                existing_desc = json.loads(workspace.description)
+            existing_desc["graph"] = merged
+            workspace.description = json.dumps(existing_desc)
+            db.commit()
+        except Exception:
+            pass
+        return merged
+
     return {"nodes": [], "edges": []}
