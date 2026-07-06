@@ -4,6 +4,11 @@ export default {
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
   ],
+  // index.css already ships its own reset, so disable Tailwind's Preflight
+  // to avoid a conflicting double-reset while still enabling every utility.
+  corePlugins: {
+    preflight: false,
+  },
   theme: {
     extend: {
       colors: {
@@ -11,7 +16,14 @@ export default {
           bg: '#FAF9F6',
           sidebar: '#F3F0E9',
           border: '#E2DEC5',
-          text: '#3B3833',
+          card: '#FFFFFF',
+          hover: '#F7F5F0',
+          // Warm-toned text hierarchy — mirrors the CSS variables in index.css.
+          text: '#3B3833',        // --text-primary
+          primary: '#BCA88A',     // --swatch-4 accent (progress fills, active borders)
+          secondary: '#6B6459',   // --text-secondary
+          muted: '#9E978C',       // --text-muted
+          placeholder: '#B8B0A4', // --text-placeholder
         },
         mastery: {
           strong: {

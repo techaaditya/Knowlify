@@ -4,7 +4,7 @@
 import os
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Header, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -19,10 +19,39 @@ from ..engines.generative.chat_engine import (
     generate_chat_response,
 )
 from ..models.source import Source
+from ..models.user import User
+from ..models.student_profile import ChatMessageModel
+from ..services import generation_store
+from ..services.auth_deps import effective_student_id, get_current_user, get_optional_user
 from ..services.source_grounding import source_context_for_query
 from ..services.workspace_graph import graph_has_data, load_workspace_graph
 
 router = APIRouter(prefix="/api", tags=["chat"])
+
+
+def _save_chat_message(
+    db: Session,
+    user: User | None,
+    workspace_id: str,
+    role: str,
+    content: str,
+    concept_ref: str | None,
+    mode: str | None,
+) -> None:
+    """Persist a single chat turn for the authenticated user (no-op if anon)."""
+    if not user or not content:
+        return
+    db.add(
+        ChatMessageModel(
+            user_id=str(user.id),
+            role=role,
+            content=content,
+            workspace_id=workspace_id,
+            concept_ref=concept_ref,
+            msg_mode=mode,
+        )
+    )
+    db.commit()
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 DATA_FILE = os.path.join(_HERE, "..", "student_data.json")
@@ -274,6 +303,7 @@ def _keyword_grade(answer: str, question: dict | None, concept_name: str | None)
 async def adaptive_chat(
     payload: ChatRequest,
     db: Session = Depends(get_db),
+    current_user: User | None = Depends(get_optional_user),
     _auth: None = Depends(_require_chatbot_api_key),
 ):
     """
@@ -308,14 +338,15 @@ async def adaptive_chat(
     source_details = _load_source_details(db, source_ids)
     source_names = [s["source_name"] for s in source_details if s.get("source_name")]
 
-    # 3. Load student profile
-    student_profile, misconceptions = _load_student_data(payload.student_id)
+    # 3. Load student profile (identity comes from the auth token when present)
+    student_id = effective_student_id(current_user, payload.student_id)
+    student_profile, misconceptions = _load_student_data(student_id)
 
     # 4. Fetch adaptive recommendation (non-blocking)
     recommendation = None
     if payload.concept_id and graph_has_data(graph_data):
         recommendation = _load_adaptive_recommendation(
-            payload.student_id, payload.concept_id, graph_data
+            student_id, payload.concept_id, graph_data
         )
 
     # 5. Build all context layers
@@ -344,6 +375,13 @@ async def adaptive_chat(
             try:
                 from ..engines.generative.learning_materials import generate_flashcards
                 flashcards = generate_flashcards(graph_data, payload.concept_id, count=5, source_context=retrieved_chunks)
+                # Save the generated set per user.
+                if flashcards:
+                    generation_store.persist_flashcards(
+                        db, flashcards,
+                        str(current_user.id) if current_user else None,
+                        payload.workspace_id, payload.concept_id,
+                    )
             except Exception as e:
                 print(f"[chat] Flashcard generation error: {e}")
         elif payload.mode == "test":
@@ -357,7 +395,14 @@ async def adaptive_chat(
                     # Pick a question randomly or based on history
                     question = questions[0]
                     question_id = f"generated-chat-{uuid4().hex}"
-                    GENERATED_QUESTIONS[question_id] = {**question, "concept_id": payload.concept_id}
+                    stored = {**question, "concept_id": payload.concept_id}
+                    GENERATED_QUESTIONS[question_id] = stored
+                    # Persist so /chat/answer can grade it after a restart, per user.
+                    generation_store.persist_question(
+                        db, question_id, stored,
+                        str(current_user.id) if current_user else None,
+                        payload.workspace_id, payload.concept_id,
+                    )
                     quiz = {
                         "id": question_id,
                         "concept_id": payload.concept_id,
@@ -391,7 +436,11 @@ async def adaptive_chat(
             concept_name=concept_name,
         )
 
-    # 8. Build response
+    # 8. Persist this turn to the user's per-workspace history.
+    _save_chat_message(db, current_user, payload.workspace_id, "user", payload.message, payload.concept_id, payload.mode)
+    _save_chat_message(db, current_user, payload.workspace_id, "assistant", reply, payload.concept_id, payload.mode)
+
+    # 9. Build response
     mastery_info = _build_mastery_info(student_profile, payload.concept_id)
 
     # Detect which sources were likely cited in the response
@@ -425,12 +474,14 @@ async def adaptive_chat(
 async def grade_chat_answer(
     payload: ChatAnswerRequest,
     db: Session = Depends(get_db),
+    current_user: User | None = Depends(get_optional_user),
     _auth: None = Depends(_require_chatbot_api_key),
 ):
     """
     Grade a student's answer from a chat quiz question.
     Records the attempt in the Student Model and returns updated mastery.
     """
+    student_id = effective_student_id(current_user, payload.student_id)
     try:
         graph_data = load_workspace_graph(db, payload.workspace_id)
     except HTTPException:
@@ -440,11 +491,13 @@ async def grade_chat_answer(
     explanation = ""
     error_type = None
 
-    # Try exact match if question exists in our memory cache
+    # Try the in-memory cache, then the persisted copy (restart-safe).
     from .quiz import GENERATED_QUESTIONS
     question = None
     if payload.question_id:
-        question = GENERATED_QUESTIONS.get(payload.question_id)
+        question = GENERATED_QUESTIONS.get(payload.question_id) or generation_store.load_question(
+            db, payload.question_id
+        )
 
     if question:
         correct_answer = question["correct_answer"]
@@ -476,7 +529,7 @@ async def grade_chat_answer(
             error_type = None if is_correct else "Concept misunderstanding"
     else:
         # Fallback to LLM grading
-        student_profile, misconceptions = _load_student_data(payload.student_id)
+        student_profile, misconceptions = _load_student_data(student_id)
         concept_name = _get_concept_name(graph_data, payload.concept_id)
 
         eval_prompt = (
@@ -532,11 +585,11 @@ async def grade_chat_answer(
     # Record the attempt in Student Model
     try:
         engine = StudentModelingEngine(data_file=DATA_FILE)
-        if payload.student_id not in engine.students:
-            engine.create_student(payload.student_id, "Learner")
+        if student_id not in engine.students:
+            engine.create_student(student_id, "Learner")
 
         engine.record_attempt(
-            student_id=payload.student_id,
+            student_id=student_id,
             topic_name=payload.concept_id,
             question_id=payload.question_id or f"chat-quiz-{hash(payload.question_context) % 10000}",
             is_correct=is_correct,
@@ -547,7 +600,7 @@ async def grade_chat_answer(
         )
         engine.save_data()
 
-        updated_profile = engine.get_student(payload.student_id)
+        updated_profile = engine.get_student(student_id)
         updated_mastery = _build_mastery_info(updated_profile, payload.concept_id)
     except Exception as e:
         print(f"[chat/answer] Student Model error: {e}")
@@ -557,7 +610,7 @@ async def grade_chat_answer(
     updated_recommendation = None
     if graph_has_data(graph_data):
         updated_recommendation = _load_adaptive_recommendation(
-            payload.student_id, payload.concept_id, graph_data
+            student_id, payload.concept_id, graph_data
         )
 
     return {
@@ -567,3 +620,50 @@ async def grade_chat_answer(
         "mastery": updated_mastery,
         "recommendation": updated_recommendation,
     }
+
+
+@router.get("/chat/history")
+async def get_chat_history(
+    workspace_id: str = Query(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Return the authenticated user's saved chat turns for a workspace."""
+    rows = (
+        db.query(ChatMessageModel)
+        .filter(
+            ChatMessageModel.user_id == str(current_user.id),
+            ChatMessageModel.workspace_id == workspace_id,
+        )
+        .order_by(ChatMessageModel.created_at.asc())
+        .all()
+    )
+    return {
+        "workspace_id": workspace_id,
+        "messages": [
+            {
+                "id": str(r.id),
+                "role": r.role,
+                "content": r.content,
+                "concept_id": r.concept_ref,
+                "mode": r.msg_mode,
+                "created_at": r.created_at.isoformat() if r.created_at else None,
+            }
+            for r in rows
+        ],
+    }
+
+
+@router.delete("/chat/history")
+async def clear_chat_history(
+    workspace_id: str = Query(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Delete the authenticated user's chat history for a workspace."""
+    db.query(ChatMessageModel).filter(
+        ChatMessageModel.user_id == str(current_user.id),
+        ChatMessageModel.workspace_id == workspace_id,
+    ).delete()
+    db.commit()
+    return {"message": "Chat history cleared."}

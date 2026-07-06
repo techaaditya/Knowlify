@@ -15,7 +15,9 @@ from ..schemas.source import (
     ProcessingLogResponse,
 )
 from ..models.source import Source, ProcessingLog
+from ..models.user import User
 from ..services import source_service
+from ..services.auth_deps import get_current_user
 from ..services.background import run_source_processing
 from ..engines.ingestion.validators import ValidationError, validate_youtube_url
 from ..engines.ingestion.processors.youtube import YouTubeProcessor
@@ -27,14 +29,35 @@ def _to_response(source: Source) -> SourceResponse:
     return SourceResponse.model_validate(source)
 
 
+def _assert_workspace_owner(db: Session, workspace_id: str, user: User) -> None:
+    """Reject access to a workspace the user does not own."""
+    if not source_service.workspace_owned_by(db, workspace_id, str(user.id)):
+        raise HTTPException(status_code=404, detail="Workspace not found.")
+
+
+def _owned_source_or_404(db: Session, source_id: str, user: User) -> Source:
+    """Load a source only if its workspace belongs to the user."""
+    source = (
+        db.query(Source)
+        .join(source_service.Workspace, Source.workspace_id == source_service.Workspace.id)
+        .filter(Source.id == source_id, source_service.Workspace.user_id == str(user.id))
+        .first()
+    )
+    if not source:
+        raise HTTPException(status_code=404, detail="Source not found.")
+    return source
+
+
 @router.post("/upload", response_model=UploadResponse)
 async def upload_sources(
     background_tasks: BackgroundTasks,
     workspace_id: str = Form(...),
     files: list[UploadFile] = File(...),
     db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
 ):
     try:
+        _assert_workspace_owner(db, workspace_id, user)
         sources = await source_service.handle_file_uploads(db, workspace_id, files)
         for source in sources:
             background_tasks.add_task(
@@ -59,8 +82,10 @@ def paste_source(
     payload: SourceCreatePaste,
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
 ):
     try:
+        _assert_workspace_owner(db, payload.workspace_id, user)
         source = source_service.create_paste_source(
             db, payload.workspace_id, payload.title, payload.content
         )
@@ -83,8 +108,10 @@ def import_website(
     payload: SourceCreateWebsite,
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
 ):
     try:
+        _assert_workspace_owner(db, payload.workspace_id, user)
         source = source_service.create_website_source(db, payload.workspace_id, payload.url)
         background_tasks.add_task(
             run_source_processing,
@@ -100,7 +127,7 @@ def import_website(
 
 
 @router.get("/youtube/preview")
-def preview_youtube(url: str = Query(...)):
+def preview_youtube(url: str = Query(...), user: User = Depends(get_current_user)):
     try:
         url = validate_youtube_url(url)
         processor = YouTubeProcessor()
@@ -124,8 +151,10 @@ def import_youtube(
     payload: SourceCreateYouTube,
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
 ):
     try:
+        _assert_workspace_owner(db, payload.workspace_id, user)
         source = source_service.create_youtube_source(db, payload.workspace_id, payload.url)
         background_tasks.add_task(
             run_source_processing,
@@ -147,7 +176,9 @@ def list_workspace_sources(
     source_type: Optional[str] = Query(None),
     sort: str = Query("newest"),
     db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
 ):
+    _assert_workspace_owner(db, workspace_id, user)
     query = db.query(Source).filter(Source.workspace_id == workspace_id)
 
     if search:
@@ -177,10 +208,12 @@ def list_workspace_sources(
 
 
 @router.get("/{source_id}", response_model=SourceDetailResponse)
-def get_source(source_id: str, db: Session = Depends(get_db)):
-    source = db.query(Source).filter(Source.id == source_id).first()
-    if not source:
-        raise HTTPException(status_code=404, detail="Source not found.")
+def get_source(
+    source_id: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    source = _owned_source_or_404(db, source_id, user)
     logs = (
         db.query(ProcessingLog)
         .filter(ProcessingLog.source_id == source_id)
@@ -205,10 +238,12 @@ def get_source(source_id: str, db: Session = Depends(get_db)):
 
 
 @router.get("/{source_id}/status", response_model=SourceStatusResponse)
-def get_source_status(source_id: str, db: Session = Depends(get_db)):
-    source = db.query(Source).filter(Source.id == source_id).first()
-    if not source:
-        raise HTTPException(status_code=404, detail="Source not found.")
+def get_source_status(
+    source_id: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    source = _owned_source_or_404(db, source_id, user)
     logs = (
         db.query(ProcessingLog)
         .filter(ProcessingLog.source_id == source_id)
@@ -226,10 +261,13 @@ def get_source_status(source_id: str, db: Session = Depends(get_db)):
 
 
 @router.patch("/{source_id}", response_model=SourceResponse)
-def update_source(source_id: str, payload: SourceUpdate, db: Session = Depends(get_db)):
-    source = db.query(Source).filter(Source.id == source_id).first()
-    if not source:
-        raise HTTPException(status_code=404, detail="Source not found.")
+def update_source(
+    source_id: str,
+    payload: SourceUpdate,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    source = _owned_source_or_404(db, source_id, user)
     if payload.source_name:
         source.source_name = payload.source_name
     db.commit()
@@ -242,10 +280,9 @@ def reprocess_source(
     source_id: str,
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
 ):
-    source = db.query(Source).filter(Source.id == source_id).first()
-    if not source:
-        raise HTTPException(status_code=404, detail="Source not found.")
+    source = _owned_source_or_404(db, source_id, user)
 
     source.processing_status = "pending"
     source.error_message = None
@@ -264,7 +301,12 @@ def reprocess_source(
 
 
 @router.delete("/{source_id}")
-def delete_source(source_id: str, db: Session = Depends(get_db)):
+def delete_source(
+    source_id: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    _owned_source_or_404(db, source_id, user)
     if not source_service.delete_source(db, source_id):
         raise HTTPException(status_code=404, detail="Source not found.")
     return {"message": "Source deleted successfully."}

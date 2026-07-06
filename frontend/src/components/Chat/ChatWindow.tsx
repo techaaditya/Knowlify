@@ -1,5 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { Send } from 'lucide-react';
 import client from '../../api/client';
+import { getChatHistory, clearChatHistory } from '../../api/chat';
 import { useStudyStore } from '../../store/studyStore';
 import { useUserStore } from '../../store/userStore';
 
@@ -442,16 +444,57 @@ export const ChatWindow: React.FC<Props> = ({
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, loading]);
 
-  // Handle starter greeting
+  const greetingMessage = (): ChatMessage => {
+    const conceptLabel = activeConceptName ? `**${activeConceptName}**` : 'your workspace sources';
+    return {
+      id: uid(),
+      role: 'assistant',
+      content: `Hello! I'm your Knowlify Tutor. Let's study ${conceptLabel} together. You can choose a mode above (like Explain, Quiz, or Flashcards) to get started!`,
+    };
+  };
+
+  // Load this user's persisted chat history for the active workspace. History
+  // is keyed by workspace (not concept), so switching concepts keeps the thread.
   useEffect(() => {
-    setMessages([]);
-    historyRef.current = [];
+    let cancelled = false;
     setSessionStats({ attempts: 0, correct: 0 });
 
-    const conceptLabel = activeConceptName ? `**${activeConceptName}**` : 'your workspace sources';
-    const greeting = `Hello! I'm your Knowlify Tutor. Let's study ${conceptLabel} together. You can choose a mode above (like Explain, Quiz, or Flashcards) to get started!`;
-    setMessages([{ id: uid(), role: 'assistant', content: greeting }]);
-  }, [activeConceptId, activeConceptName]);
+    const showGreeting = () => {
+      setMessages([greetingMessage()]);
+      historyRef.current = [];
+    };
+
+    async function load() {
+      if (!workspaceId) {
+        showGreeting();
+        return;
+      }
+      try {
+        const hist = await getChatHistory(workspaceId);
+        if (cancelled) return;
+        if (hist.messages.length > 0) {
+          setMessages(hist.messages.map((m) => ({ id: m.id, role: m.role, content: m.content })));
+          historyRef.current = hist.messages.map((m) => ({ role: m.role, content: m.content })).slice(-16);
+        } else {
+          showGreeting();
+        }
+      } catch {
+        if (!cancelled) showGreeting();
+      }
+    }
+    load();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [workspaceId]);
+
+  const handleClearChat = async () => {
+    if (workspaceId) {
+      try { await clearChatHistory(workspaceId); } catch { /* best effort */ }
+    }
+    setMessages([greetingMessage()]);
+    historyRef.current = [];
+    setSessionStats({ attempts: 0, correct: 0 });
+  };
 
   // Synchronize initialMode changes
   useEffect(() => {
@@ -675,33 +718,49 @@ export const ChatWindow: React.FC<Props> = ({
             </div>
           </div>
 
-          {/* Live Mastery Ring */}
-          {activeConceptId && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <div style={{ textAlign: 'right' }}>
-                <p style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Concept Mastery</p>
-                <p style={{ fontSize: '11px', fontWeight: 700, color: getMasteryColor(selectedConceptMastery) }}>
-                  {selectedConceptStatus}
-                </p>
+          {/* Right cluster: clear-history + live mastery ring */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <button
+              onClick={handleClearChat}
+              title="Clear this workspace's chat history"
+              style={{
+                fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)',
+                background: '#fff', border: '1px solid var(--border-soft)',
+                borderRadius: 8, padding: '5px 10px', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', gap: 5, transition: 'all 0.15s ease',
+              }}
+            >
+              🗑️ Clear chat
+            </button>
+
+            {activeConceptId && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{ textAlign: 'right' }}>
+                  <p style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Concept Mastery</p>
+                  <p style={{ fontSize: '11px', fontWeight: 700, color: getMasteryColor(selectedConceptMastery) }}>
+                    {selectedConceptStatus}
+                  </p>
+                </div>
+                <MasteryProgressRing score={selectedConceptMastery} />
               </div>
-              <MasteryProgressRing score={selectedConceptMastery} />
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
         {/* Mode Selector pills */}
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 12 }}>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 14 }}>
           {MODES.map((m) => (
             <button
               key={m.id}
               onClick={() => handleModeChange(m.id)}
               title={m.desc}
               style={{
-                padding: '5px 12px', borderRadius: 20, fontSize: '11px', fontWeight: 600,
+                padding: '6px 14px', borderRadius: 20, fontSize: '11px', fontWeight: 600,
                 border: mode === m.id ? '1.5px solid var(--swatch-4)' : '1.5px solid var(--border-soft)',
                 background: mode === m.id ? 'var(--swatch-4)' : '#fff',
                 color: mode === m.id ? '#fff' : 'var(--text-secondary)',
-                cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4,
+                boxShadow: mode === m.id ? '0 2px 8px rgba(188,168,138,0.32)' : 'var(--shadow-xs)',
+                cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5,
                 transition: 'all 0.15s ease',
               }}
             >
@@ -843,37 +902,47 @@ export const ChatWindow: React.FC<Props> = ({
         )}
       </div>
 
-      {/* Input Form */}
-      <form onSubmit={(e) => { e.preventDefault(); sendMessage(input); }} style={{ padding: 12, display: 'flex', gap: 8, background: 'var(--swatch-2)', borderTop: '1px solid var(--border-soft)' }}>
-        <textarea
-          ref={textInputRef}
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder={
-            mode === 'test' 
-              ? 'Select an option above to answer the quiz!' 
-              : `Ask about ${activeConceptName || 'your sources'}... (Ctrl+Enter to send)`
-          }
-          rows={1}
-          style={{
-            flex: 1, padding: '10px 14px', borderRadius: 20, fontSize: 12.5,
-            border: '1px solid var(--border-soft)', background: '#FFF',
-            color: 'var(--text-primary)', outline: 'none', resize: 'none',
-            fontFamily: 'inherit', lineHeight: 1.4,
-          }}
-          onKeyDownCapture={handleTextareaKeyDown}
-        />
-        <button
-          type="submit"
-          disabled={loading || !input.trim()}
-          style={{
-            padding: '10px 20px', borderRadius: 20, fontSize: 12, fontWeight: 700,
-            background: 'var(--swatch-4)', color: '#FFF', border: 'none', cursor: 'pointer',
-            opacity: loading || !input.trim() ? 0.6 : 1, transition: 'all 0.15s ease',
-          }}
-        >
-          Send
-        </button>
+      {/* Input Form — self-contained container with the send button nested inside */}
+      <form onSubmit={(e) => { e.preventDefault(); sendMessage(input); }} style={{ padding: 12, background: 'var(--swatch-2)', borderTop: '1px solid var(--border-soft)' }}>
+        <div style={{
+          display: 'flex', alignItems: 'flex-end', gap: 8,
+          background: '#FFF', border: '1px solid var(--border-soft)',
+          borderRadius: 22, padding: '6px 6px 6px 16px', boxShadow: 'var(--shadow-sm)',
+        }}>
+          <textarea
+            ref={textInputRef}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder={
+              mode === 'test'
+                ? 'Select an option above to answer the quiz!'
+                : `Ask about ${activeConceptName || 'your sources'}... (Ctrl+Enter to send)`
+            }
+            rows={1}
+            style={{
+              flex: 1, padding: '8px 0', fontSize: 12.5,
+              border: 'none', background: 'transparent',
+              color: 'var(--text-primary)', outline: 'none', resize: 'none',
+              fontFamily: 'inherit', lineHeight: 1.5,
+            }}
+            onKeyDownCapture={handleTextareaKeyDown}
+          />
+          <button
+            type="submit"
+            disabled={loading || !input.trim()}
+            aria-label="Send message"
+            style={{
+              flexShrink: 0, width: 38, height: 38, borderRadius: '50%',
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+              background: 'var(--swatch-4)', color: '#FFF', border: 'none',
+              cursor: loading || !input.trim() ? 'default' : 'pointer',
+              opacity: loading || !input.trim() ? 0.5 : 1, transition: 'all 0.15s ease',
+              boxShadow: loading || !input.trim() ? 'none' : '0 2px 8px rgba(188,168,138,0.4)',
+            }}
+          >
+            <Send size={16} />
+          </button>
+        </div>
       </form>
     </div>
   );
