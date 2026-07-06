@@ -1,5 +1,8 @@
 import React, { useEffect, useRef } from 'react';
-import { Network } from 'vis-network';
+import { ZoomIn, ZoomOut, Maximize2 } from 'lucide-react';
+// The self-contained "standalone" build bundles vis-data, avoiding the CJS
+// `require('vis-data/...')` in the default entry that Rolldown/Vite 8 can't resolve.
+import { Network } from 'vis-network/standalone/esm/vis-network';
 import { useStudyStore } from '../../store/studyStore';
 import { useUserStore } from '../../store/userStore';
 
@@ -228,5 +231,31 @@ export const ConceptGraph: React.FC = () => {
     }
   }, [selectedNodeId]);
 
-  return <div id="network-container" ref={containerRef} />;
+  const zoomBy = (factor: number) => {
+    const net = networkRef.current;
+    if (!net) return;
+    const scale = net.getScale() * factor;
+    net.moveTo({ scale, animation: { duration: 200, easingFunction: 'easeInOutQuad' } });
+  };
+
+  const fitView = () => {
+    networkRef.current?.fit({ animation: { duration: 350, easingFunction: 'easeInOutQuad' } });
+  };
+
+  return (
+    <>
+      <div id="network-container" ref={containerRef} />
+      <div className="graph-controls">
+        <button type="button" className="graph-control-btn" onClick={() => zoomBy(1.2)} aria-label="Zoom in" title="Zoom in">
+          <ZoomIn size={16} />
+        </button>
+        <button type="button" className="graph-control-btn" onClick={() => zoomBy(1 / 1.2)} aria-label="Zoom out" title="Zoom out">
+          <ZoomOut size={16} />
+        </button>
+        <button type="button" className="graph-control-btn" onClick={fitView} aria-label="Center and fit graph" title="Center & fit">
+          <Maximize2 size={15} />
+        </button>
+      </div>
+    </>
+  );
 };

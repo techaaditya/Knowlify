@@ -111,7 +111,7 @@ Choose the setup instructions corresponding to the shell you are using:
    ```
 2. Activate the pre-configured virtual environment:
    ```bash
-   source venv/Scripts/activate
+   source venv/bin/activate
    ```
 3. Run the FastAPI development server:
    ```bash

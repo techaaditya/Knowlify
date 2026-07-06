@@ -166,6 +166,8 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onLearningAction, 
   const summary = dashboard.summary;
   const recommendation = dashboard.adaptive_recommendation;
   const recommendedConcept = recommendation?.recommended_concept || recommendation?.concept_id;
+  // Urgent (rose) callout when there is a misconception or high forgetting risk; otherwise a calmer amber tone.
+  const isUrgent = Boolean(recommendation?.misconception) || (recommendation?.forgetting_risk || '').toLowerCase() === 'high';
 
   return (
     <div className="space-y-6">
@@ -289,40 +291,40 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onLearningAction, 
         </div>
       </div>
 
-      <div className="card border-l-4 border-l-theme-primary">
+      <div className={`card adaptive-callout ${isUrgent ? 'urgent' : ''}`}>
         <div className="card-header">
           <h3>Adaptive Next Step</h3>
           <span className="badge">{recommendation?.prerequisite_source || dashboard.context_graph.source}</span>
         </div>
         {recommendation ? (
           <>
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 text-xs">
-            <div className="space-y-2">
-              <p className="text-theme-muted uppercase tracking-wider text-[10px]">Current Concept</p>
-              <p className="text-theme-text font-bold text-sm">{recommendation.concept_name}</p>
-              <p className="text-theme-muted">Mastery: {(recommendation.current_mastery * 100).toFixed(0)}%</p>
+          <div className="adaptive-callout-grid">
+            <div className="adaptive-panel">
+              <p className="adaptive-panel-label">Current Concept</p>
+              <p className="adaptive-panel-value">{recommendation.concept_name}</p>
+              <p className="adaptive-panel-meta">Mastery: {(recommendation.current_mastery * 100).toFixed(0)}%</p>
               {recommendation.readiness_score !== undefined && recommendation.readiness_score !== null && (
-                <p className="text-theme-muted">Readiness: {(recommendation.readiness_score * 100).toFixed(0)}%</p>
+                <p className="adaptive-panel-meta">Readiness: {(recommendation.readiness_score * 100).toFixed(0)}%</p>
               )}
             </div>
-            <div className="space-y-2">
-              <p className="text-theme-muted uppercase tracking-wider text-[10px]">Next Action</p>
-              <p className="text-theme-text font-bold text-sm">{actionLabel(recommendation.next_action)}</p>
-              <p className="text-theme-muted">Recommended: {recommendation.recommended_concept || 'None'}</p>
+            <div className="adaptive-panel">
+              <p className="adaptive-panel-label">Next Action</p>
+              <p className="adaptive-panel-value">{actionLabel(recommendation.next_action)}</p>
+              <p className="adaptive-panel-meta">Recommended: {recommendation.recommended_concept || 'None'}</p>
               {recommendation.weakest_prerequisite && (
-                <p className="text-theme-muted">Weakest prerequisite: {recommendation.weakest_prerequisite}</p>
+                <p className="adaptive-panel-meta">Weakest prerequisite: {recommendation.weakest_prerequisite}</p>
               )}
             </div>
-            <div className="space-y-2">
-              <p className="text-theme-muted uppercase tracking-wider text-[10px]">Reason</p>
-              <p className="text-theme-text leading-relaxed">{recommendation.reason}</p>
+            <div className="adaptive-panel">
+              <p className="adaptive-panel-label">Reason</p>
+              <p className="adaptive-panel-meta">{recommendation.reason}</p>
               {recommendation.suggested_activity && (
-                <p className="text-theme-text leading-relaxed">{recommendation.suggested_activity}</p>
+                <p className="adaptive-panel-meta">{recommendation.suggested_activity}</p>
               )}
-              <p className="text-theme-muted">Forgetting risk: {recommendation.forgetting_risk}</p>
+              <p className="adaptive-panel-meta">Forgetting risk: <strong>{recommendation.forgetting_risk}</strong></p>
             </div>
           </div>
-          <div className="flex flex-wrap gap-3 mt-5">
+          <div className="adaptive-actions">
             <button type="button" className="btn btn-secondary" onClick={() => onLearningAction('graph', recommendedConcept)}>Open Graph</button>
             {onChatAction && (
               <button

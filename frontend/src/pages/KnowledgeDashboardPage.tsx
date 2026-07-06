@@ -23,22 +23,22 @@ export const KnowledgeDashboardPage: React.FC = () => {
 
       <div className="knowledge-metrics-grid">
         <div className="metric-card">
-          <span className="metric-icon">📚</span>
+          <span className="metric-icon tint-sand">📚</span>
           <span className="metric-value">{stats?.total_sources ?? 0}</span>
           <span className="metric-label">Total Sources</span>
         </div>
         <div className="metric-card">
-          <span className="metric-icon">🧩</span>
+          <span className="metric-icon tint-medium">🧩</span>
           <span className="metric-value">{stats?.total_chunks ?? 0}</span>
           <span className="metric-label">Total Chunks</span>
         </div>
         <div className="metric-card">
-          <span className="metric-icon">🔷</span>
+          <span className="metric-icon tint-strong">🔷</span>
           <span className="metric-value">{stats?.total_entities ?? 0}</span>
           <span className="metric-label">Total Entities</span>
         </div>
         <div className="metric-card">
-          <span className="metric-icon">🔗</span>
+          <span className="metric-icon tint-weak">🔗</span>
           <span className="metric-value">{stats?.total_relationships ?? 0}</span>
           <span className="metric-label">Relationships</span>
         </div>
@@ -75,9 +75,9 @@ export const KnowledgeDashboardPage: React.FC = () => {
             <h3>Popular Topics</h3>
           </div>
           {dashboard?.popular_topics?.length ? (
-            <div className="source-topics p-4">
+            <div className="topic-cloud">
               {dashboard.popular_topics.map((t) => (
-                <span key={t} className="source-topic-tag">{t}</span>
+                <span key={t} className="topic-pill">{t}</span>
               ))}
             </div>
           ) : (

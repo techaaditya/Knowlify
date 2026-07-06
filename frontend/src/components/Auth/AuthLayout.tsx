@@ -1,4 +1,5 @@
 import React from 'react';
+import { Check } from 'lucide-react';
 
 interface Props {
   children: React.ReactNode;
@@ -31,7 +32,9 @@ export const AuthLayout: React.FC<Props> = ({ children }) => (
           <ul className="auth-feature-list">
             {FEATURES.map((f) => (
               <li key={f}>
-                <span className="auth-feature-dot" />
+                <span className="auth-feature-check">
+                  <Check size={13} strokeWidth={3} />
+                </span>
                 {f}
               </li>
             ))}
