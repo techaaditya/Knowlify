@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { Send } from 'lucide-react';
 import client from '../../api/client';
 import { getChatHistory, clearChatHistory } from '../../api/chat';
 import { useStudyStore } from '../../store/studyStore';
@@ -747,18 +748,19 @@ export const ChatWindow: React.FC<Props> = ({
         </div>
 
         {/* Mode Selector pills */}
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 12 }}>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 14 }}>
           {MODES.map((m) => (
             <button
               key={m.id}
               onClick={() => handleModeChange(m.id)}
               title={m.desc}
               style={{
-                padding: '5px 12px', borderRadius: 20, fontSize: '11px', fontWeight: 600,
+                padding: '6px 14px', borderRadius: 20, fontSize: '11px', fontWeight: 600,
                 border: mode === m.id ? '1.5px solid var(--swatch-4)' : '1.5px solid var(--border-soft)',
                 background: mode === m.id ? 'var(--swatch-4)' : '#fff',
                 color: mode === m.id ? '#fff' : 'var(--text-secondary)',
-                cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4,
+                boxShadow: mode === m.id ? '0 2px 8px rgba(188,168,138,0.32)' : 'var(--shadow-xs)',
+                cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5,
                 transition: 'all 0.15s ease',
               }}
             >
@@ -900,37 +902,47 @@ export const ChatWindow: React.FC<Props> = ({
         )}
       </div>
 
-      {/* Input Form */}
-      <form onSubmit={(e) => { e.preventDefault(); sendMessage(input); }} style={{ padding: 12, display: 'flex', gap: 8, background: 'var(--swatch-2)', borderTop: '1px solid var(--border-soft)' }}>
-        <textarea
-          ref={textInputRef}
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder={
-            mode === 'test' 
-              ? 'Select an option above to answer the quiz!' 
-              : `Ask about ${activeConceptName || 'your sources'}... (Ctrl+Enter to send)`
-          }
-          rows={1}
-          style={{
-            flex: 1, padding: '10px 14px', borderRadius: 20, fontSize: 12.5,
-            border: '1px solid var(--border-soft)', background: '#FFF',
-            color: 'var(--text-primary)', outline: 'none', resize: 'none',
-            fontFamily: 'inherit', lineHeight: 1.4,
-          }}
-          onKeyDownCapture={handleTextareaKeyDown}
-        />
-        <button
-          type="submit"
-          disabled={loading || !input.trim()}
-          style={{
-            padding: '10px 20px', borderRadius: 20, fontSize: 12, fontWeight: 700,
-            background: 'var(--swatch-4)', color: '#FFF', border: 'none', cursor: 'pointer',
-            opacity: loading || !input.trim() ? 0.6 : 1, transition: 'all 0.15s ease',
-          }}
-        >
-          Send
-        </button>
+      {/* Input Form — self-contained container with the send button nested inside */}
+      <form onSubmit={(e) => { e.preventDefault(); sendMessage(input); }} style={{ padding: 12, background: 'var(--swatch-2)', borderTop: '1px solid var(--border-soft)' }}>
+        <div style={{
+          display: 'flex', alignItems: 'flex-end', gap: 8,
+          background: '#FFF', border: '1px solid var(--border-soft)',
+          borderRadius: 22, padding: '6px 6px 6px 16px', boxShadow: 'var(--shadow-sm)',
+        }}>
+          <textarea
+            ref={textInputRef}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder={
+              mode === 'test'
+                ? 'Select an option above to answer the quiz!'
+                : `Ask about ${activeConceptName || 'your sources'}... (Ctrl+Enter to send)`
+            }
+            rows={1}
+            style={{
+              flex: 1, padding: '8px 0', fontSize: 12.5,
+              border: 'none', background: 'transparent',
+              color: 'var(--text-primary)', outline: 'none', resize: 'none',
+              fontFamily: 'inherit', lineHeight: 1.5,
+            }}
+            onKeyDownCapture={handleTextareaKeyDown}
+          />
+          <button
+            type="submit"
+            disabled={loading || !input.trim()}
+            aria-label="Send message"
+            style={{
+              flexShrink: 0, width: 38, height: 38, borderRadius: '50%',
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+              background: 'var(--swatch-4)', color: '#FFF', border: 'none',
+              cursor: loading || !input.trim() ? 'default' : 'pointer',
+              opacity: loading || !input.trim() ? 0.5 : 1, transition: 'all 0.15s ease',
+              boxShadow: loading || !input.trim() ? 'none' : '0 2px 8px rgba(188,168,138,0.4)',
+            }}
+          >
+            <Send size={16} />
+          </button>
+        </div>
       </form>
     </div>
   );
