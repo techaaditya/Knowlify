@@ -8,10 +8,11 @@ import { SelectedSourcesBar } from '../components/Sources/SelectedSourcesBar';
 
 interface StudyPageProps {
   initialMode?: string;
+  initialMessage?: string;
   onClearInitPayload?: () => void;
 }
 
-export const StudyPage: React.FC<StudyPageProps> = ({ initialMode, onClearInitPayload }) => {
+export const StudyPage: React.FC<StudyPageProps> = ({ initialMode, initialMessage, onClearInitPayload }) => {
   const selectedNodeData = useStudyStore((state) => state.selectedNodeData);
   const selectedNodeId = useStudyStore((state) => state.selectedNodeId);
   const selectedSources = useSourcesStore((s) => s.getSelectedSources());
@@ -20,10 +21,10 @@ export const StudyPage: React.FC<StudyPageProps> = ({ initialMode, onClearInitPa
   const studentId = useUserStore((s) => s.studentId);
 
   React.useEffect(() => {
-    if (initialMode && onClearInitPayload) {
+    if ((initialMode || initialMessage) && onClearInitPayload) {
       onClearInitPayload();
     }
-  }, [initialMode, onClearInitPayload]);
+  }, [initialMode, initialMessage, onClearInitPayload]);
 
   return (
     <div className="space-y-6">
@@ -81,6 +82,7 @@ export const StudyPage: React.FC<StudyPageProps> = ({ initialMode, onClearInitPa
               studentId={studentId}
               sourceIds={selectedSourceIds}
               initialMode={initialMode}
+              initialMessage={initialMessage}
             />
           </div>
         </div>
