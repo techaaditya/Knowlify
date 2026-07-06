@@ -57,6 +57,22 @@ def _get_chat_client() -> OpenAI:
     )
 
 
+def _chat_model_candidates() -> list[str]:
+    """Return primary and local fallback chat models without duplicates."""
+    candidates = [
+        settings.CHAT_MODEL,
+        settings.CHAT_FALLBACK_MODEL,
+    ]
+    seen = set()
+    unique = []
+    for model in candidates:
+        model_name = (model or "").strip().strip('"').strip("'")
+        if model_name and model_name not in seen:
+            seen.add(model_name)
+            unique.append(model_name)
+    return unique
+
+
 def build_source_context(
     sources: list[dict],
     concept_id: str | None,
@@ -324,11 +340,22 @@ def generate_chat_response(
     messages.append({"role": "user", "content": message})
 
     client = _get_chat_client()
-    response = client.chat.completions.create(
-        model=settings.CHAT_MODEL,
-        messages=messages,
-        temperature=0.4,
-        max_tokens=1500,
-    )
+    first_error: Exception | None = None
 
-    return response.choices[0].message.content or "I'm sorry, I couldn't generate a response."
+    for model_name in _chat_model_candidates():
+        try:
+            response = client.chat.completions.create(
+                model=model_name,
+                messages=messages,
+                temperature=0.4,
+                max_tokens=1500,
+            )
+            return response.choices[0].message.content or "I'm sorry, I couldn't generate a response."
+        except Exception as exc:
+            if first_error is None:
+                first_error = exc
+            print(f"[chat_engine] Model '{model_name}' failed: {exc}")
+
+    if first_error:
+        raise first_error
+    raise RuntimeError("No chat model is configured.")
