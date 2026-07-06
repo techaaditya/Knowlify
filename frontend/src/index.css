@@ -84,6 +84,15 @@
     box-sizing: border-box;
 }
 
+/* Preflight is disabled in tailwind.config, so replicate only its border
+   defaults: width 0 + solid style, so Tailwind `border`/`border-t` utilities
+   render visible borders (a bare `border-width` is ignored when style is none). */
+*, *::before, *::after {
+    border-width: 0;
+    border-style: solid;
+    border-color: var(--border-soft);
+}
+
 html {
     font-size: 16px;
     -webkit-font-smoothing: antialiased;
@@ -766,14 +775,33 @@ body {
 }
 
 .recommendation-box {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
     background: rgba(188, 168, 138, 0.07);
     border: 1px solid rgba(188, 168, 138, 0.18);
     border-left: 3px solid var(--swatch-4);
-    padding: 0.7rem 0.9rem;
-    border-radius: var(--radius-sm);
+    padding: 1rem 1.1rem;
+    border-radius: var(--radius-md);
     font-size: 0.79rem;
     line-height: 1.6;
     color: var(--text-secondary);
+}
+
+.recommendation-box strong {
+    font-family: var(--font-heading);
+    font-size: 0.9rem;
+    font-weight: 650;
+    color: var(--text-primary);
+    letter-spacing: 0.1px;
+}
+
+.recommendation-box p { line-height: 1.6; }
+
+/* Action buttons inside a recommendation box get clear separation from the text */
+.recommendation-box .btn {
+    align-self: flex-start;
+    margin-top: 0.35rem;
 }
 
 .recommendation-box.revision-needed {
@@ -846,6 +874,59 @@ body {
     margin-top: 1.25rem;
     padding-top: 1.1rem;
     border-top: 1px solid var(--border-faint);
+}
+
+/* ── Blocked items list (Context Graph Coverage) ──────────── */
+.blocked-list {
+    margin-top: 1.25rem;
+    border: 1px solid var(--border-faint);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+}
+
+.blocked-item {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--border-faint);
+    background: var(--bg-card);
+}
+
+.blocked-item:last-child { border-bottom: none; }
+.blocked-item:nth-child(even) { background: var(--swatch-1); }
+
+.blocked-concept {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    letter-spacing: 0.1px;
+}
+
+.blocked-label {
+    font-size: 0.72rem;
+    font-weight: 500;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+}
+
+.blocked-pills {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+
+.blocked-pill {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    font-weight: 500;
+    padding: 0.2rem 0.55rem;
+    border-radius: 6px;
+    color: #8a5248;
+    background: var(--weak-bg);
+    border: 1px solid rgba(197, 143, 132, 0.28);
 }
 
 .relationship-section {
@@ -923,7 +1004,7 @@ body {
 .form-group {
     display: flex;
     flex-direction: column;
-    gap: 0.38rem;
+    gap: 0.5rem;
 }
 
 .form-group label {
@@ -935,9 +1016,9 @@ body {
 .form-control {
     background: var(--bg-input);
     border: 1px solid var(--border-soft);
-    border-radius: var(--radius-sm);
+    border-radius: var(--radius-md);
     color: var(--text-primary);
-    padding: 0.68rem 0.875rem;
+    padding: 0.75rem 1rem;
     font-family: var(--font-body);
     font-size: 0.83rem;
     font-weight: 500;
@@ -1923,7 +2004,7 @@ input[type="number"].form-control {
     list-style: none;
     display: flex;
     flex-direction: column;
-    gap: 0.25rem;
+    gap: 0.5rem;
     padding: 0;
     margin: 0;
 }

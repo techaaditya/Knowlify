@@ -170,28 +170,30 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onLearningAction, 
   const isUrgent = Boolean(recommendation?.misconception) || (recommendation?.forgetting_risk || '').toLowerCase() === 'high';
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div className="dashboard-header">
         <div className="header-title">
           <h2>Dashboard Engine</h2>
           <p>{scope === 'overall' ? 'Overall analysis across all learning folders' : `Analysis for ${workspace?.name || 'the active learning folder'}`}</p>
         </div>
-        <div className="flex gap-2">
-          <button type="button" className={`btn ${scope === 'workspace' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setScope('workspace')}>This Folder</button>
-          <button type="button" className={`btn ${scope === 'overall' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setScope('overall')}>Overall</button>
-        </div>
-        <div className="global-stats">
-          <div className="stat-box">
-            <span className="stat-label">Mastery</span>
-            <span className="stat-value">{compactPercent(summary.average_mastery)}</span>
+        <div className="flex flex-col items-stretch gap-3 lg:items-end">
+          <div className="flex gap-2 justify-end">
+            <button type="button" className={`btn ${scope === 'workspace' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setScope('workspace')}>This Folder</button>
+            <button type="button" className={`btn ${scope === 'overall' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setScope('overall')}>Overall</button>
           </div>
-          <div className="stat-box">
-            <span className="stat-label">Accuracy</span>
-            <span className="stat-value">{compactPercent(summary.accuracy_rate)}</span>
-          </div>
-          <div className={`stat-box warning-box ${summary.misconception_count > 0 ? 'active-misconception' : ''}`}>
-            <span className="stat-label">Misconceptions</span>
-            <span className="stat-value">{summary.misconception_count}</span>
+          <div className="global-stats">
+            <div className="stat-box">
+              <span className="stat-label">Mastery</span>
+              <span className="stat-value">{compactPercent(summary.average_mastery)}</span>
+            </div>
+            <div className="stat-box">
+              <span className="stat-label">Accuracy</span>
+              <span className="stat-value">{compactPercent(summary.accuracy_rate)}</span>
+            </div>
+            <div className={`stat-box warning-box ${summary.misconception_count > 0 ? 'active-misconception' : ''}`}>
+              <span className="stat-label">Misconceptions</span>
+              <span className="stat-value">{summary.misconception_count}</span>
+            </div>
           </div>
         </div>
       </div>
@@ -398,11 +400,17 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onLearningAction, 
           </div>
           <ContextGraphChart graph={dashboard.context_graph} />
           {dashboard.context_graph.bottlenecks.length > 0 && (
-            <div className="mt-4 space-y-2 text-xs">
+            <div className="blocked-list">
               {dashboard.context_graph.bottlenecks.map((item) => (
-                <p key={item.concept_id} className="recommendation-box revision-needed">
-                  {item.concept_id} is blocked by {item.weak_prerequisites.join(', ')}
-                </p>
+                <div key={item.concept_id} className="blocked-item">
+                  <span className="blocked-concept">{item.concept_id}</span>
+                  <span className="blocked-label">blocked by</span>
+                  <span className="blocked-pills">
+                    {item.weak_prerequisites.map((prereq) => (
+                      <span key={prereq} className="blocked-pill">{prereq}</span>
+                    ))}
+                  </span>
+                </div>
               ))}
             </div>
           )}
