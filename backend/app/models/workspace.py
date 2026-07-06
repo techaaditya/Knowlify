@@ -13,6 +13,10 @@ class Workspace(Base):
     __tablename__ = "workspaces"
 
     id = Column(String, primary_key=True, default=_uuid)
+    # Owning user. Stored as a plain string (the user's UUID) rather than a
+    # cross-dialect FK so it works identically on PostgreSQL and SQLite.
+    # NULL means legacy/unowned (claimed by the first authenticated user).
+    user_id = Column(String(36), nullable=True, index=True)
     name = Column(String(255), nullable=False, default="My Knowledge Base")
     description = Column(Text, nullable=True)
     total_sources = Column(Integer, default=0)

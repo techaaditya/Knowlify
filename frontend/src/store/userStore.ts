@@ -36,7 +36,8 @@ interface UserState {
 }
 
 export const useUserStore = create<UserState>((set, get) => ({
-  studentId: 'student-1',
+  // Set to the authenticated user's id on login (see authStore.setSession).
+  studentId: '',
   studentData: null,
   loading: false,
   error: null,

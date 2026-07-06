@@ -11,9 +11,31 @@ const client = axios.create({
   },
 });
 
+export const AUTH_TOKEN_KEY = 'knowlify_auth_token';
+
+/** Read the session token from persistent or session storage. */
+export const getStoredToken = (): string | null =>
+  localStorage.getItem(AUTH_TOKEN_KEY) || sessionStorage.getItem(AUTH_TOKEN_KEY);
+
+/** Persist the token. `remember` chooses long-lived vs tab-scoped storage. */
+export const setStoredToken = (token: string, remember: boolean): void => {
+  localStorage.removeItem(AUTH_TOKEN_KEY);
+  sessionStorage.removeItem(AUTH_TOKEN_KEY);
+  (remember ? localStorage : sessionStorage).setItem(AUTH_TOKEN_KEY, token);
+};
+
+export const clearStoredToken = (): void => {
+  localStorage.removeItem(AUTH_TOKEN_KEY);
+  sessionStorage.removeItem(AUTH_TOKEN_KEY);
+};
+
 client.interceptors.request.use((config) => {
   if (CHATBOT_API_KEY && config.url?.startsWith('/api/chat')) {
     config.headers['X-Chatbot-API-Key'] = CHATBOT_API_KEY;
+  }
+  const token = getStoredToken();
+  if (token) {
+    config.headers['Authorization'] = `Bearer ${token}`;
   }
   return config;
 });

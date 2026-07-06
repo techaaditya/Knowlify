@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
+import { LogOut } from 'lucide-react';
 import { useUserStore } from './store/userStore';
+import { useAuthStore } from './store/authStore';
 import { useStudyStore } from './store/studyStore';
 import { useWorkspaceStore } from './store/workspaceStore';
 import { useSourcesStore } from './store/sourcesStore';
@@ -35,6 +37,9 @@ export const App: React.FC = () => {
 
   const studentData = useUserStore((state) => state.studentData);
   const fetchStudentData = useUserStore((state) => state.fetchStudentData);
+
+  const authUser = useAuthStore((state) => state.user);
+  const logout = useAuthStore((state) => state.logout);
 
   const currentCourse = useStudyStore((state) => state.currentCourse);
   const fetchGraphData = useStudyStore((state) => state.fetchGraphData);
@@ -172,6 +177,33 @@ export const App: React.FC = () => {
             </>
           )}
         </nav>
+
+        {authUser && (
+          <div className="sidebar-account">
+            <div className="sidebar-account-user">
+              <div className="student-avatar" aria-hidden="true">
+                {authUser.avatar_url ? (
+                  <img src={authUser.avatar_url} alt="" className="sidebar-account-avatar" />
+                ) : (
+                  authUser.name.trim().charAt(0).toUpperCase() || authUser.email.charAt(0).toUpperCase()
+                )}
+              </div>
+              <div className="sidebar-account-info">
+                <h3>{authUser.name || 'Account'}</h3>
+                <p>{authUser.email}</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              className="sidebar-logout-btn"
+              onClick={logout}
+              aria-label="Sign out"
+            >
+              <LogOut size={16} />
+              <span>Sign out</span>
+            </button>
+          </div>
+        )}
       </aside>
 
       <main className="main-content">

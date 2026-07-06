@@ -15,4 +15,14 @@ class Settings:
     PORT: int = int(os.getenv("PORT", 8000))
     HOST: str = os.getenv("HOST", "0.0.0.0")
 
+    # Authentication
+    # A stable random secret is generated per-process if none is provided, so
+    # local dev works out of the box. Set JWT_SECRET in production so tokens
+    # survive restarts.
+    JWT_SECRET: str = os.getenv("JWT_SECRET", "") or __import__("secrets").token_hex(32)
+    JWT_EXPIRE_SECONDS: int = int(os.getenv("JWT_EXPIRE_SECONDS", 60 * 60 * 24 * 7))  # 7 days
+    GOOGLE_CLIENT_ID: str = os.getenv("GOOGLE_CLIENT_ID", "")
+    # Where the frontend is served — used to build password-reset links.
+    FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://localhost:5173")
+
 settings = Settings()

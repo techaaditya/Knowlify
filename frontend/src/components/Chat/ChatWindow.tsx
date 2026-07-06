@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import client from '../../api/client';
+import { getChatHistory, clearChatHistory } from '../../api/chat';
 import { useStudyStore } from '../../store/studyStore';
 import { useUserStore } from '../../store/userStore';
 
@@ -424,16 +425,57 @@ export const ChatWindow: React.FC<Props> = ({
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, loading]);
 
-  // Handle starter greeting
+  const greetingMessage = (): ChatMessage => {
+    const conceptLabel = activeConceptName ? `**${activeConceptName}**` : 'your workspace sources';
+    return {
+      id: uid(),
+      role: 'assistant',
+      content: `Hello! I'm your Knowlify Tutor. Let's study ${conceptLabel} together. You can choose a mode above (like Explain, Quiz, or Flashcards) to get started!`,
+    };
+  };
+
+  // Load this user's persisted chat history for the active workspace. History
+  // is keyed by workspace (not concept), so switching concepts keeps the thread.
   useEffect(() => {
-    setMessages([]);
-    historyRef.current = [];
+    let cancelled = false;
     setSessionStats({ attempts: 0, correct: 0 });
 
-    const conceptLabel = activeConceptName ? `**${activeConceptName}**` : 'your workspace sources';
-    const greeting = `Hello! I'm your Knowlify Tutor. Let's study ${conceptLabel} together. You can choose a mode above (like Explain, Quiz, or Flashcards) to get started!`;
-    setMessages([{ id: uid(), role: 'assistant', content: greeting }]);
-  }, [activeConceptId, activeConceptName]);
+    const showGreeting = () => {
+      setMessages([greetingMessage()]);
+      historyRef.current = [];
+    };
+
+    async function load() {
+      if (!workspaceId) {
+        showGreeting();
+        return;
+      }
+      try {
+        const hist = await getChatHistory(workspaceId);
+        if (cancelled) return;
+        if (hist.messages.length > 0) {
+          setMessages(hist.messages.map((m) => ({ id: m.id, role: m.role, content: m.content })));
+          historyRef.current = hist.messages.map((m) => ({ role: m.role, content: m.content })).slice(-16);
+        } else {
+          showGreeting();
+        }
+      } catch {
+        if (!cancelled) showGreeting();
+      }
+    }
+    load();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [workspaceId]);
+
+  const handleClearChat = async () => {
+    if (workspaceId) {
+      try { await clearChatHistory(workspaceId); } catch { /* best effort */ }
+    }
+    setMessages([greetingMessage()]);
+    historyRef.current = [];
+    setSessionStats({ attempts: 0, correct: 0 });
+  };
 
   // Synchronize initialMode changes
   useEffect(() => {
@@ -642,18 +684,33 @@ export const ChatWindow: React.FC<Props> = ({
             </div>
           </div>
 
-          {/* Live Mastery Ring */}
-          {activeConceptId && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <div style={{ textAlign: 'right' }}>
-                <p style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Concept Mastery</p>
-                <p style={{ fontSize: '11px', fontWeight: 700, color: getMasteryColor(selectedConceptMastery) }}>
-                  {selectedConceptStatus}
-                </p>
+          {/* Right cluster: clear-history + live mastery ring */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <button
+              onClick={handleClearChat}
+              title="Clear this workspace's chat history"
+              style={{
+                fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)',
+                background: '#fff', border: '1px solid var(--border-soft)',
+                borderRadius: 8, padding: '5px 10px', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', gap: 5, transition: 'all 0.15s ease',
+              }}
+            >
+              🗑️ Clear chat
+            </button>
+
+            {activeConceptId && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{ textAlign: 'right' }}>
+                  <p style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Concept Mastery</p>
+                  <p style={{ fontSize: '11px', fontWeight: 700, color: getMasteryColor(selectedConceptMastery) }}>
+                    {selectedConceptStatus}
+                  </p>
+                </div>
+                <MasteryProgressRing score={selectedConceptMastery} />
               </div>
-              <MasteryProgressRing score={selectedConceptMastery} />
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
         {/* Mode Selector pills */}
