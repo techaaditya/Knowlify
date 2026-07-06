@@ -158,6 +158,21 @@ function renderInline(text: string): React.ReactNode {
   });
 }
 
+function cleanWidgetIntroText(text: string, hasFlashcards?: boolean, hasQuiz?: boolean): string {
+  if (!hasFlashcards && !hasQuiz) return text;
+
+  const lines = text.split('\n');
+  return lines
+    .filter((line) => {
+      const trimmed = line.trim();
+      if (hasFlashcards && /^(flashcard|card|front|back|question|answer)\s*:/i.test(trimmed)) return false;
+      if (hasQuiz && /^(quiz|question|answer|correct answer|options?)\s*:/i.test(trimmed)) return false;
+      return true;
+    })
+    .join('\n')
+    .trim();
+}
+
 // ─── Sub-Components ─────────────────────────────────────────────────────────
 
 const MasteryProgressRing: React.FC<{ score: number }> = ({ score }) => {
@@ -731,7 +746,9 @@ export const ChatWindow: React.FC<Props> = ({
                   </button>
                 )}
 
-                {msg.role === 'user' ? msg.content : renderMarkdown(msg.content)}
+                {msg.role === 'user'
+                  ? msg.content
+                  : renderMarkdown(cleanWidgetIntroText(msg.content, Boolean(msg.flashcards?.length), Boolean(msg.quiz)))}
 
                 {/* Render Interactive Flashcards widget if present */}
                 {msg.flashcards && msg.flashcards.length > 0 && (

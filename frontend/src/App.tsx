@@ -12,7 +12,8 @@ import { QuizPage } from './pages/QuizPage';
 import { FlashcardsPage } from './pages/FlashcardsPage';
 import { WorkspaceHeader } from './components/Workspace/WorkspaceHeader';
 
-type Tab = 'dashboard' | 'sources' | 'chat' | 'graph' | 'quiz' | 'flashcards' | 'analytics';
+type Tab = 'dashboard' | 'sources' | 'chat' | 'graph' | 'generate' | 'analytics';
+type GenerateMode = 'quiz' | 'flashcards';
 
 interface ChatActionPayload {
   conceptId?: string | null;
@@ -24,14 +25,50 @@ const NAV_ITEMS: { id: Tab; label: string }[] = [
   { id: 'sources', label: 'Sources' },
   { id: 'chat', label: 'Chat' },
   { id: 'graph', label: 'Knowledge Graph' },
-  { id: 'quiz', label: 'Quiz' },
-  { id: 'flashcards', label: 'Flashcards' },
+  { id: 'generate', label: 'Generate' },
   { id: 'analytics', label: 'Analytics' },
 ];
+
+const GeneratePage: React.FC<{ initialMode: GenerateMode }> = ({ initialMode }) => {
+  const [activeMode, setActiveMode] = useState<GenerateMode>(initialMode);
+
+  useEffect(() => {
+    setActiveMode(initialMode);
+  }, [initialMode]);
+
+  return (
+    <div className="space-y-6">
+      <div className="dashboard-header">
+        <div className="header-title">
+          <h2>Generate</h2>
+          <p>Create source-grounded quizzes and flashcards from the selected learning folder.</p>
+        </div>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            className={`btn ${activeMode === 'quiz' ? 'btn-primary' : 'btn-secondary'}`}
+            onClick={() => setActiveMode('quiz')}
+          >
+            Quiz
+          </button>
+          <button
+            type="button"
+            className={`btn ${activeMode === 'flashcards' ? 'btn-primary' : 'btn-secondary'}`}
+            onClick={() => setActiveMode('flashcards')}
+          >
+            Flashcards
+          </button>
+        </div>
+      </div>
+      {activeMode === 'quiz' ? <QuizPage embedded /> : <FlashcardsPage embedded />}
+    </div>
+  );
+};
 
 export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
   const [addSourcesTrigger, setAddSourcesTrigger] = useState(0);
+  const [generateMode, setGenerateMode] = useState<GenerateMode>('quiz');
 
   const studentData = useUserStore((state) => state.studentData);
   const fetchStudentData = useUserStore((state) => state.fetchStudentData);
@@ -83,10 +120,8 @@ export const App: React.FC = () => {
         );
       case 'graph':
         return <KnowledgeMapPage />;
-      case 'quiz':
-        return <QuizPage />;
-      case 'flashcards':
-        return <FlashcardsPage />;
+      case 'generate':
+        return <GeneratePage initialMode={generateMode} />;
       case 'analytics':
         return <DashboardPage onLearningAction={handleLearningAction} onChatAction={handleChatAction} />;
       default:
@@ -103,7 +138,12 @@ export const App: React.FC = () => {
 
   const handleLearningAction = (tab: 'graph' | 'quiz' | 'flashcards', conceptId?: string | null) => {
     if (conceptId) setSelectedNodeId(conceptId);
-    setActiveTab(tab);
+    if (tab === 'graph') {
+      setActiveTab('graph');
+      return;
+    }
+    setGenerateMode(tab);
+    setActiveTab('generate');
   };
 
   const handleCreateWorkspace = async () => {

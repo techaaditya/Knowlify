@@ -6,7 +6,11 @@ import { useStudyStore } from '../store/studyStore';
 import { useUserStore } from '../store/userStore';
 import { useWorkspaceStore } from '../store/workspaceStore';
 
-export const QuizPage: React.FC = () => {
+interface QuizPageProps {
+  embedded?: boolean;
+}
+
+export const QuizPage: React.FC<QuizPageProps> = ({ embedded = false }) => {
   const graphData = useStudyStore((state) => state.graphData);
   const selectedNodeId = useStudyStore((state) => state.selectedNodeId);
   const setSelectedNodeId = useStudyStore((state) => state.setSelectedNodeId);
@@ -98,7 +102,14 @@ export const QuizPage: React.FC = () => {
   return (
     <div className="space-y-6">
       <SelectedSourcesBar />
-      <div className="dashboard-header"><div className="header-title"><h2>Concept Quiz</h2><p>Assess understanding of a selected concept, its meaning, prerequisites, and learning-path relationships.</p></div></div>
+      {!embedded && (
+        <div className="dashboard-header">
+          <div className="header-title">
+            <h2>Concept Quiz</h2>
+            <p>Assess understanding of a selected concept, its meaning, prerequisites, and learning-path relationships.</p>
+          </div>
+        </div>
+      )}
       {selectedSources.length === 0 ? <div className="card p-8 text-center text-theme-muted text-sm">Select processed sources in the Sources page first.</div> : !graphData?.nodes.length ? <div className="card p-8 text-center text-theme-muted text-sm">Your selected sources do not have an available knowledge graph yet.</div> : <>
         <div className="card p-5">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 md:items-end">

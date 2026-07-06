@@ -18,7 +18,11 @@ const difficultyLabel = (difficulty?: string) => {
   return difficulty[0].toUpperCase() + difficulty.slice(1);
 };
 
-export const FlashcardsPage: React.FC = () => {
+interface FlashcardsPageProps {
+  embedded?: boolean;
+}
+
+export const FlashcardsPage: React.FC<FlashcardsPageProps> = ({ embedded = false }) => {
   const graphData = useStudyStore((state) => state.graphData);
   const selectedNodeId = useStudyStore((state) => state.selectedNodeId);
   const setSelectedNodeId = useStudyStore((state) => state.setSelectedNodeId);
@@ -95,16 +99,18 @@ export const FlashcardsPage: React.FC = () => {
   return (
     <div className="space-y-6">
       <SelectedSourcesBar />
-      <div className="dashboard-header">
-        <div className="header-title">
-          <h2>Flashcards</h2>
-          <p>Review concepts from your selected sources with active recall and spaced repetition.</p>
+      {!embedded && (
+        <div className="dashboard-header">
+          <div className="header-title">
+            <h2>Flashcards</h2>
+            <p>Review concepts from your selected sources with active recall and spaced repetition.</p>
+          </div>
+          <div className="metric-card compact">
+            <span className="metric-label">Due Today</span>
+            <strong className="metric-value">{dueReviews.length}</strong>
+          </div>
         </div>
-        <div className="metric-card compact">
-          <span className="metric-label">Due Today</span>
-          <strong className="metric-value">{dueReviews.length}</strong>
-        </div>
-      </div>
+      )}
       {selectedSources.length === 0 ? (
         <div className="card p-8 text-center text-theme-muted text-sm">Select processed sources in the Sources page first.</div>
       ) : !graphData?.nodes.length ? (
