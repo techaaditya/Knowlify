@@ -23,7 +23,10 @@ def ensure_upload_dir(workspace_id: str) -> str:
     return path
 
 
-def get_or_create_default_workspace(db: Session) -> Workspace:
+def get_or_create_default_workspace(db: Session, user_id: str | None = None) -> Workspace:
+    """Return a usable workspace, scoped to the user when one is provided."""
+    if user_id is not None:
+        return ensure_user_workspaces(db, user_id)[0]
     workspace = db.query(Workspace).first()
     if not workspace:
         workspace = Workspace(name="My Knowledge Base", description="{}")
@@ -31,6 +34,52 @@ def get_or_create_default_workspace(db: Session) -> Workspace:
         db.commit()
         db.refresh(workspace)
     return workspace
+
+
+def ensure_user_workspaces(db: Session, user_id: str) -> list[Workspace]:
+    """Return the user's workspaces, creating/claiming as needed.
+
+    Isolation rules:
+      1. If the user already owns workspaces, return them.
+      2. Otherwise, the first authenticated user adopts any legacy unowned
+         workspaces (the pre-auth shared data), so existing uploads aren't lost.
+      3. If nothing is left to adopt, create a fresh empty workspace.
+    """
+    owned = (
+        db.query(Workspace)
+        .filter(Workspace.user_id == user_id)
+        .order_by(Workspace.updated_at.desc())
+        .all()
+    )
+    if owned:
+        return owned
+
+    unowned = db.query(Workspace).filter(Workspace.user_id.is_(None)).all()
+    if unowned:
+        for ws in unowned:
+            ws.user_id = user_id
+        db.commit()
+        return (
+            db.query(Workspace)
+            .filter(Workspace.user_id == user_id)
+            .order_by(Workspace.updated_at.desc())
+            .all()
+        )
+
+    workspace = Workspace(name="My Knowledge Base", description="{}", user_id=user_id)
+    db.add(workspace)
+    db.commit()
+    db.refresh(workspace)
+    return [workspace]
+
+
+def workspace_owned_by(db: Session, workspace_id: str, user_id: str) -> Optional[Workspace]:
+    """Return the workspace only if it belongs to the given user."""
+    return (
+        db.query(Workspace)
+        .filter(Workspace.id == workspace_id, Workspace.user_id == user_id)
+        .first()
+    )
 
 
 def get_workspace(db: Session, workspace_id: str) -> Optional[Workspace]:

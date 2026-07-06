@@ -114,6 +114,34 @@ class Flashcard(Base):
     concept_id = Column(GUID(), ForeignKey("concepts.id", ondelete="CASCADE"), nullable=True)
     front = Column(Text, nullable=False)
     back = Column(Text, nullable=False)
+    # Per-user generation metadata (plain columns — no cross-dialect FK).
+    workspace_id = Column(String(36), nullable=True, index=True)
+    concept_ref = Column(String(255), nullable=True)
+    card_key = Column(String(64), nullable=True)
+    source_name = Column(String(500), nullable=True)
+    difficulty = Column(String(30), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+# ---------------------------------------------------------------------------
+# Generated Quiz Questions (persisted so grading survives restarts, per user)
+# ---------------------------------------------------------------------------
+class GeneratedQuestion(Base):
+    __tablename__ = "generated_questions"
+
+    id = Column(String(64), primary_key=True)  # the public question_id
+    user_id = Column(String(36), nullable=True, index=True)
+    workspace_id = Column(String(36), nullable=True, index=True)
+    concept_ref = Column(String(255), nullable=True)
+    question_type = Column(String(30), nullable=True)
+    difficulty = Column(String(30), nullable=True)
+    prompt = Column(Text, nullable=False)
+    options = Column(JSON, nullable=True, default=list)
+    correct_answer = Column(Text, nullable=True)
+    explanation = Column(Text, nullable=True)
+    evidence = Column(Text, nullable=True)
+    source_name = Column(String(500), nullable=True)
+    expected_keywords = Column(JSON, nullable=True, default=list)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -128,4 +156,8 @@ class ChatMessageModel(Base):
     role = Column(String(50), nullable=True)  # 'user' or 'assistant'
     content = Column(Text, nullable=True)
     context_concept_id = Column(GUID(), ForeignKey("concepts.id", ondelete="CASCADE"), nullable=True)
+    # Per-user, per-workspace threading (plain columns — no cross-dialect FK).
+    workspace_id = Column(String(36), nullable=True, index=True)
+    concept_ref = Column(String(255), nullable=True)
+    msg_mode = Column(String(30), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
