@@ -12,7 +12,10 @@ from ..engines.adaptive import adaptive_engine
 from ..engines.adaptive.database import SessionLocal
 from ..engines.cognitive.student_model import StudentModelingEngine
 from ..engines.generative.learning_materials import generate_flashcards, generate_quiz_questions
+from ..models.user import User
 from ..schemas.quiz import FlashcardReviewCreate, GeneratedQuizAnswer, QuizAttemptCreate, QuizGenerateRequest
+from ..services import generation_store
+from ..services.auth_deps import effective_student_id, get_optional_user
 from ..services.source_grounding import source_context_for_concept
 from ..services.spaced_repetition import due_flashcard_reviews, record_flashcard_review
 from ..services.workspace_graph import graph_has_data, load_workspace_graph
@@ -85,15 +88,23 @@ def _record_attempt(payload: QuizAttemptCreate, graph_data: dict | None = None, 
     }
 
 @router.post("/attempt")
-async def record_attempt(payload: QuizAttemptCreate):
+async def record_attempt(
+    payload: QuizAttemptCreate,
+    current_user: User | None = Depends(get_optional_user),
+):
     try:
+        payload.student_id = effective_student_id(current_user, payload.student_id)
         return _record_attempt(payload)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/quiz/generate")
-async def generate_quiz(payload: QuizGenerateRequest, app_db: Session = Depends(get_db)):
+async def generate_quiz(
+    payload: QuizGenerateRequest,
+    app_db: Session = Depends(get_db),
+    current_user: User | None = Depends(get_optional_user),
+):
     """Generate multiple-choice questions from a real workspace knowledge graph."""
     graph_data = load_workspace_graph(app_db, payload.workspace_id)
     if not graph_has_data(graph_data):
@@ -112,10 +123,16 @@ async def generate_quiz(payload: QuizGenerateRequest, app_db: Session = Depends(
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
+    user_id = str(current_user.id) if current_user else None
     public_questions = []
     for question in questions:
         question_id = f"generated-{uuid4().hex}"
-        GENERATED_QUESTIONS[question_id] = {**question, "concept_id": payload.concept_id}
+        stored = {**question, "concept_id": payload.concept_id}
+        GENERATED_QUESTIONS[question_id] = stored
+        # Persist per user so grading survives restarts and stays isolated.
+        generation_store.persist_question(
+            app_db, question_id, stored, user_id, payload.workspace_id, payload.concept_id
+        )
         public_questions.append({
             "id": question_id,
             "concept_id": payload.concept_id,
@@ -138,9 +155,14 @@ async def generate_quiz(payload: QuizGenerateRequest, app_db: Session = Depends(
 async def answer_generated_quiz(
     payload: GeneratedQuizAnswer,
     app_db: Session = Depends(get_db),
+    current_user: User | None = Depends(get_optional_user),
 ):
     """Grade a generated question and update Student Model plus Adaptive Engine."""
-    question = GENERATED_QUESTIONS.get(payload.question_id)
+    payload.student_id = effective_student_id(current_user, payload.student_id)
+    # Prefer the in-memory cache, fall back to the persisted copy (restart-safe).
+    question = GENERATED_QUESTIONS.get(payload.question_id) or generation_store.load_question(
+        app_db, payload.question_id
+    )
     if not question:
         raise HTTPException(status_code=404, detail="Generated question expired. Generate a new quiz.")
 
@@ -189,6 +211,7 @@ async def get_flashcards(
     concept_id: str = Query(...),
     count: int = Query(default=4, ge=1, le=10),
     app_db: Session = Depends(get_db),
+    current_user: User | None = Depends(get_optional_user),
 ):
     """Generate revision cards from a selected workspace concept."""
     graph_data = load_workspace_graph(app_db, workspace_id)
@@ -197,14 +220,24 @@ async def get_flashcards(
     try:
         concept = next((node for node in graph_data.get("nodes", []) if node.get("id") == concept_id), None)
         source_context = source_context_for_concept(app_db, workspace_id, concept or {})
-        return {"concept_id": concept_id, "cards": generate_flashcards(graph_data, concept_id, count, source_context)}
+        cards = generate_flashcards(graph_data, concept_id, count, source_context)
+        # Save the generation per user so it persists and stays isolated.
+        generation_store.persist_flashcards(
+            app_db, cards, str(current_user.id) if current_user else None, workspace_id, concept_id
+        )
+        return {"concept_id": concept_id, "cards": cards}
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
 @router.post("/flashcards/review")
-async def review_flashcard(payload: FlashcardReviewCreate, app_db: Session = Depends(get_db)):
+async def review_flashcard(
+    payload: FlashcardReviewCreate,
+    app_db: Session = Depends(get_db),
+    current_user: User | None = Depends(get_optional_user),
+):
     """Record flashcard quality, schedule the next review, and update recall mastery."""
+    payload.student_id = effective_student_id(current_user, payload.student_id)
     try:
         review = record_flashcard_review(
             payload.student_id,
@@ -242,5 +275,7 @@ async def review_flashcard(payload: FlashcardReviewCreate, app_db: Session = Dep
 async def get_due_flashcards(
     student_id: str = Query(...),
     workspace_id: str | None = Query(default=None),
+    current_user: User | None = Depends(get_optional_user),
 ):
+    student_id = effective_student_id(current_user, student_id)
     return {"student_id": student_id, "due_reviews": due_flashcard_reviews(student_id, workspace_id)}

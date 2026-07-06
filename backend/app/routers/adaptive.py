@@ -8,6 +8,9 @@ from ..engines.adaptive import adaptive_engine
 from ..engines.adaptive.database import SessionLocal
 from ..engines.cognitive.student_model import StudentModelingEngine
 from ..database import get_db
+from ..models.user import User
+from ..services.auth_deps import effective_student_id, get_optional_user
+from ..services.source_service import workspace_owned_by
 from ..services.workspace_graph import graph_has_data, load_workspace_graph
 
 
@@ -23,6 +26,7 @@ async def get_recommendation(
     workspace_id: str = Query(..., description="Workspace containing the uploaded learning sources."),
     x_adaptive_api_key: str | None = Header(default=None),
     app_db: Session = Depends(get_db),
+    current_user: User | None = Depends(get_optional_user),
 ):
     """
     Build a recommendation from one learner's real quiz history and Context
@@ -32,6 +36,10 @@ async def get_recommendation(
         raise HTTPException(status_code=401, detail="Invalid adaptive engine API key.")
 
     try:
+        student_id = effective_student_id(current_user, student_id)
+        if current_user and not workspace_owned_by(app_db, workspace_id, str(current_user.id)):
+            raise HTTPException(status_code=404, detail="Workspace not found.")
+
         cognitive_engine = StudentModelingEngine(data_file=DATA_FILE)
         if student_id not in cognitive_engine.students:
             raise HTTPException(status_code=404, detail=f"Student '{student_id}' has no recorded quiz attempts yet.")
