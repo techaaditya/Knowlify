@@ -18,6 +18,7 @@ type GenerateMode = 'quiz' | 'flashcards';
 interface ChatActionPayload {
   conceptId?: string | null;
   mode?: string;
+  message?: string;
 }
 
 const NAV_ITEMS: { id: Tab; label: string }[] = [
@@ -29,7 +30,10 @@ const NAV_ITEMS: { id: Tab; label: string }[] = [
   { id: 'analytics', label: 'Analytics' },
 ];
 
-const GeneratePage: React.FC<{ initialMode: GenerateMode }> = ({ initialMode }) => {
+const GeneratePage: React.FC<{
+  initialMode: GenerateMode;
+  onChatAction: (conceptId?: string | null, mode?: string, message?: string) => void;
+}> = ({ initialMode, onChatAction }) => {
   const [activeMode, setActiveMode] = useState<GenerateMode>(initialMode);
 
   useEffect(() => {
@@ -60,7 +64,7 @@ const GeneratePage: React.FC<{ initialMode: GenerateMode }> = ({ initialMode }) 
           </button>
         </div>
       </div>
-      {activeMode === 'quiz' ? <QuizPage embedded /> : <FlashcardsPage embedded />}
+      {activeMode === 'quiz' ? <QuizPage embedded onLearnMore={onChatAction} /> : <FlashcardsPage embedded />}
     </div>
   );
 };
@@ -115,13 +119,14 @@ export const App: React.FC = () => {
         return (
           <StudyPage
             initialMode={chatInitPayload?.mode}
+            initialMessage={chatInitPayload?.message}
             onClearInitPayload={() => setChatInitPayload(null)}
           />
         );
       case 'graph':
         return <KnowledgeMapPage />;
       case 'generate':
-        return <GeneratePage initialMode={generateMode} />;
+        return <GeneratePage initialMode={generateMode} onChatAction={handleChatAction} />;
       case 'analytics':
         return <DashboardPage onLearningAction={handleLearningAction} onChatAction={handleChatAction} />;
       default:
@@ -151,9 +156,9 @@ export const App: React.FC = () => {
     if (name?.trim()) await createWorkspace(name.trim());
   };
 
-  const handleChatAction = (conceptId?: string | null, mode?: string) => {
+  const handleChatAction = (conceptId?: string | null, mode?: string, message?: string) => {
     if (conceptId) setSelectedNodeId(conceptId);
-    setChatInitPayload({ conceptId, mode });
+    setChatInitPayload({ conceptId, mode, message });
     setActiveTab('chat');
   };
 

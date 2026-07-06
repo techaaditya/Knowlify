@@ -47,6 +47,7 @@ interface Props {
   studentId?: string;
   sourceIds?: string[];
   initialMode?: string;
+  initialMessage?: string;
 }
 
 // ─── Constants ─────────────────────────────────────────────────────────────
@@ -412,6 +413,7 @@ export const ChatWindow: React.FC<Props> = ({
   studentId = 'student-1',
   sourceIds = [],
   initialMode = 'explain',
+  initialMessage,
 }) => {
   const [mode, setMode] = useState<ModeId>(initialMode as ModeId);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -433,6 +435,7 @@ export const ChatWindow: React.FC<Props> = ({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textInputRef = useRef<HTMLTextAreaElement>(null);
   const historyRef = useRef<{ role: string; content: string }[]>([]);
+  const initialMessageRef = useRef<string | null>(null);
 
   // Auto-scroll
   useEffect(() => {
@@ -452,10 +455,25 @@ export const ChatWindow: React.FC<Props> = ({
 
   // Synchronize initialMode changes
   useEffect(() => {
+    if (initialMessage) return;
     if (initialMode && initialMode !== mode) {
       handleModeChange(initialMode as ModeId);
     }
-  }, [initialMode]);
+  }, [initialMode, initialMessage]);
+
+  // Send a specific handoff prompt from another page, such as quiz review.
+  useEffect(() => {
+    if (!initialMessage) return;
+    const handoffKey = `${activeConceptId}:${initialMode}:${initialMessage}`;
+    if (initialMessageRef.current === handoffKey) return;
+
+    initialMessageRef.current = handoffKey;
+    const handoffMode = (initialMode || 'explain') as ModeId;
+    setMode(handoffMode);
+    window.setTimeout(() => {
+      sendMessage(initialMessage, handoffMode);
+    }, 0);
+  }, [initialMessage, initialMode, activeConceptId]);
 
   const handleModeChange = (newMode: ModeId) => {
     setMode(newMode);
