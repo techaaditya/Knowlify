@@ -1,0 +1,342 @@
+/* ============================================================
+   Knowledge Graph — premium redesign in Knowlify's own warm
+   alabaster theme (same palette as the rest of the app).
+   Presentation only: scoped entirely under .kg-shell.
+   ============================================================ */
+
+.kg-shell {
+    flex: 1 1 auto;
+    min-height: 0;
+    margin: -0.5rem -2.25rem -2.5rem;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-app);
+    background-image:
+        radial-gradient(ellipse at 0% 0%, rgba(188,168,138,0.09) 0%, transparent 55%),
+        radial-gradient(ellipse at 100% 100%, rgba(210,201,185,0.09) 0%, transparent 55%);
+    color: var(--text-primary);
+    font-family: var(--font-body);
+    position: relative;
+    overflow: hidden;
+}
+
+/* ── Header ────────────────────────────────────────────────── */
+.kg-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.5rem;
+    padding: 1.25rem 2rem;
+    border-bottom: 1px solid var(--border-faint);
+    flex-wrap: wrap;
+    flex-shrink: 0;
+}
+
+.kg-header-title h2 {
+    font-family: var(--font-heading);
+    font-size: 1.3rem;
+    font-weight: 700;
+    letter-spacing: -0.2px;
+    background: linear-gradient(125deg, var(--text-primary) 0%, var(--swatch-4) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.kg-header-title p {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-top: 0.2rem;
+}
+
+.kg-header-sources { max-width: 480px; flex: 1; min-width: 260px; }
+
+/* ── Empty state (no sources selected) ───────────────────────── */
+.kg-empty {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    text-align: center;
+    padding: 2rem;
+}
+.kg-empty-icon { font-size: 3rem; opacity: 0.4; }
+.kg-empty h3 { font-family: var(--font-heading); font-size: 1.2rem; color: var(--text-primary); }
+.kg-empty p { font-size: 0.88rem; color: var(--text-muted); max-width: 380px; line-height: 1.6; }
+
+/* ── Body: canvas + side panel ────────────────────────────────── */
+.kg-body {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    position: relative;
+}
+
+.kg-canvas-area {
+    flex: 1 1 75%;
+    min-width: 0;
+    position: relative;
+}
+
+#kg-network-container {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    inset: 0;
+}
+
+.kg-tooltip {
+    position: absolute;
+    transform: translate(-50%, -140%);
+    background: rgba(255, 255, 255, 0.97);
+    border: 1px solid var(--border-soft);
+    border-radius: 8px;
+    padding: 0.4rem 0.7rem;
+    font-size: 0.74rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    white-space: nowrap;
+    pointer-events: none;
+    box-shadow: var(--shadow-md);
+    z-index: 20;
+    backdrop-filter: blur(8px);
+}
+
+/* ── Side panel ───────────────────────────────────────────────── */
+.kg-panel {
+    flex: 0 0 340px;
+    max-width: 340px;
+    border-left: 1px solid var(--border-faint);
+    background: rgba(255, 255, 255, 0.65);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    overflow-y: auto;
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+.kg-panel-empty { display: flex; align-items: center; justify-content: center; }
+.kg-panel-empty-inner { text-align: center; padding: 1.5rem; display: flex; flex-direction: column; align-items: center; gap: 0.75rem; }
+.kg-panel-empty-icon { font-size: 2.5rem; opacity: 0.4; }
+.kg-panel-empty-inner h3 { font-family: var(--font-heading); font-size: 1.05rem; color: var(--text-primary); }
+.kg-panel-empty-inner p { font-size: 0.82rem; color: var(--text-muted); line-height: 1.6; }
+
+.kg-panel-header { display: flex; flex-direction: column; gap: 0.5rem; }
+
+.kg-panel-badge {
+    align-self: flex-start;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.66rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 0.25rem 0.65rem;
+    border-radius: 999px;
+    border: 1px solid;
+}
+
+.kg-panel-header h2 {
+    font-family: var(--font-heading);
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1.25;
+}
+
+.kg-panel-diff { font-size: 0.85rem; letter-spacing: 2px; color: var(--swatch-4); }
+.kg-panel-diff span { font-size: 0.68rem; letter-spacing: 0.5px; color: var(--text-muted); margin-left: 0.4rem; }
+
+.kg-panel-desc { font-size: 0.85rem; line-height: 1.65; color: var(--text-secondary); }
+
+.kg-panel-section {
+    border-top: 1px solid var(--border-faint);
+    padding-top: 1.1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.kg-panel-label {
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-muted);
+}
+
+.kg-mastery-row { display: flex; align-items: center; gap: 1rem; }
+.kg-mastery-ring-wrap { position: relative; flex-shrink: 0; width: 56px; height: 56px; }
+.kg-mastery-ring-label {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--font-heading); font-size: 0.92rem; font-weight: 800; color: var(--text-primary);
+}
+.kg-mastery-meta p { font-size: 0.78rem; color: var(--text-secondary); line-height: 1.5; margin-top: 0.2rem; }
+
+.kg-stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem 1rem; }
+.kg-stat-row { display: flex; flex-direction: column; gap: 0.15rem; }
+.kg-stat-row span { font-size: 0.68rem; color: var(--text-muted); }
+.kg-stat-row strong { font-size: 0.82rem; color: var(--text-primary); font-weight: 600; }
+
+.kg-ai-insight {
+    display: flex; gap: 0.55rem; align-items: flex-start;
+    background: rgba(188, 168, 138, 0.08);
+    border: 1px solid rgba(188, 168, 138, 0.22);
+    border-left: 3px solid var(--swatch-4);
+    border-radius: 10px;
+    padding: 0.75rem 0.875rem;
+}
+.kg-ai-insight svg { color: var(--swatch-4); flex-shrink: 0; margin-top: 2px; }
+.kg-ai-insight p { font-size: 0.8rem; line-height: 1.6; color: var(--text-secondary); }
+
+.kg-rel-section { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.kg-rel-list { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.45rem; }
+.kg-rel-list em { font-size: 0.72rem; color: var(--text-placeholder); font-style: normal; }
+
+.kg-rel-chip {
+    font-size: 0.72rem; font-weight: 600;
+    padding: 0.28rem 0.6rem;
+    border-radius: 999px;
+    background: var(--weak-bg);
+    border: 1px solid var(--weak-border);
+    color: #8A5248;
+    cursor: pointer;
+    transition: background 0.2s ease, border-color 0.2s ease;
+}
+.kg-rel-chip:hover { background: rgba(197, 143, 132, 0.22); border-color: var(--weak-hue); }
+.kg-rel-chip.unlock { background: var(--strong-bg); border-color: var(--strong-border); color: #586a55; }
+.kg-rel-chip.unlock:hover { background: rgba(143, 158, 139, 0.22); border-color: var(--strong-hue); }
+
+.kg-panel-actions { display: flex; flex-direction: column; gap: 0.55rem; margin-top: auto; padding-top: 1rem; }
+
+.kg-action-btn {
+    display: flex; align-items: center; justify-content: center; gap: 0.5rem;
+    font-family: var(--font-body); font-size: 0.85rem; font-weight: 600;
+    padding: 0.7rem 1rem;
+    border-radius: 10px;
+    border: 1px solid var(--border-soft);
+    background: var(--bg-card);
+    color: var(--text-primary);
+    cursor: pointer;
+    box-shadow: var(--shadow-xs);
+    transition: background 0.2s ease, border-color 0.2s ease, transform 0.1s ease;
+}
+.kg-action-btn:hover:not(:disabled) { background: var(--swatch-1); border-color: var(--border-medium); box-shadow: var(--shadow-sm); }
+.kg-action-btn:active:not(:disabled) { transform: scale(0.98); }
+.kg-action-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.kg-action-btn.primary {
+    background: linear-gradient(135deg, var(--swatch-4) 0%, #a08872 100%);
+    border-color: transparent;
+    color: #FFFFFF;
+    box-shadow: 0 4px 16px rgba(188, 168, 138, 0.35);
+}
+.kg-action-btn.primary:hover:not(:disabled) { box-shadow: 0 6px 20px rgba(188, 168, 138, 0.45); }
+
+/* ── Bottom toolbar ───────────────────────────────────────────── */
+.kg-toolbar {
+    position: absolute;
+    left: 50%;
+    bottom: 1.5rem;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.5rem;
+    background: rgba(255, 255, 255, 0.85);
+    border: 1px solid var(--border-soft);
+    border-radius: 999px;
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    box-shadow: var(--shadow-lg);
+    z-index: 15;
+}
+
+.kg-toolbar-btn {
+    position: relative;
+    width: 38px; height: 38px;
+    display: flex; align-items: center; justify-content: center;
+    border: none; border-radius: 50%;
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+.kg-toolbar-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+.kg-toolbar-btn.active { background: rgba(188, 168, 138, 0.18); color: var(--swatch-4); }
+.kg-toolbar-divider { width: 1px; height: 22px; background: var(--border-soft); margin: 0 0.15rem; }
+
+.kg-toolbar-badge {
+    position: absolute; top: 2px; right: 2px;
+    width: 15px; height: 15px;
+    border-radius: 50%;
+    background: var(--swatch-4);
+    color: #FFFFFF;
+    font-size: 0.6rem; font-weight: 800;
+    display: flex; align-items: center; justify-content: center;
+}
+
+/* ── Floating popovers (search / filters / legend) ─────────────── */
+.kg-popover {
+    position: absolute;
+    left: 50%;
+    bottom: 5rem;
+    transform: translateX(-50%);
+    background: rgba(255, 255, 255, 0.95);
+    border: 1px solid var(--border-soft);
+    border-radius: 14px;
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    box-shadow: var(--shadow-lg);
+    z-index: 16;
+    padding: 0.7rem 0.9rem;
+}
+
+.kg-popover-search { display: flex; align-items: center; gap: 0.5rem; width: min(320px, 80vw); color: var(--text-muted); }
+.kg-popover-search input {
+    flex: 1; background: none; border: none; outline: none;
+    color: var(--text-primary); font-size: 0.88rem; font-family: var(--font-body);
+}
+.kg-popover-search input::placeholder { color: var(--text-placeholder); }
+.kg-popover-search button { background: none; border: none; color: var(--text-muted); cursor: pointer; display: flex; }
+
+.kg-popover-filters { display: flex; flex-wrap: wrap; gap: 0.4rem; max-width: min(420px, 85vw); }
+
+.kg-filter-chip {
+    display: inline-flex; align-items: center; gap: 0.4rem;
+    font-size: 0.76rem; font-weight: 600;
+    padding: 0.35rem 0.75rem;
+    border-radius: 999px;
+    border: 1px solid var(--border-soft);
+    background: var(--swatch-1);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+.kg-filter-chip:hover { background: var(--bg-hover); }
+.kg-filter-chip.active { background: var(--swatch-2); border-color: var(--border-medium); }
+.kg-filter-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+.kg-popover-legend { display: flex; flex-direction: column; gap: 0.5rem; min-width: 160px; }
+.kg-popover-legend h4 { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); margin-bottom: 0.2rem; }
+.kg-legend-row { display: flex; align-items: center; gap: 0.55rem; font-size: 0.8rem; color: var(--text-primary); }
+
+/* ── Reused SelectedSourcesBar — already themed via the app's own vars ── */
+.kg-shell .selected-sources-bar { border-radius: 12px; }
+
+/* ── Responsive ───────────────────────────────────────────────── */
+@media (max-width: 960px) {
+    .kg-body { flex-direction: column; }
+    .kg-panel { flex: 0 0 auto; max-width: none; max-height: 45vh; border-left: none; border-top: 1px solid var(--border-faint); }
+    .kg-canvas-area { min-height: 320px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .kg-toolbar-btn, .kg-filter-chip, .kg-action-btn { transition: none; }
+}
