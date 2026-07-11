@@ -13,6 +13,7 @@ import { KnowledgeDashboardPage } from './pages/KnowledgeDashboardPage';
 import { QuizPage } from './pages/QuizPage';
 import { FlashcardsPage } from './pages/FlashcardsPage';
 import { WorkspaceHeader } from './components/Workspace/WorkspaceHeader';
+import { CompanionDock } from './companion/CompanionDock';
 
 type Tab = 'dashboard' | 'sources' | 'chat' | 'graph' | 'generate' | 'analytics';
 type GenerateMode = 'quiz' | 'flashcards';
@@ -259,6 +260,9 @@ export const App: React.FC = () => {
         />
         {renderContent()}
       </main>
+
+      {/* AI Learning Companion — always present, lower-right */}
+      <CompanionDock />
     </div>
   );
 };
