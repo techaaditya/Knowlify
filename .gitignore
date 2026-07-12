@@ -26,8 +26,11 @@ Thumbs.db
 
 # Uploaded Files & Databases
 backend/uploads/
+backend/app/uploads/
 *.sqlite3
 *.db
+*.db-shm
+*.db-wal
 extracted_graph_cache.json
 student_data.json
 student_workspace_data.json
