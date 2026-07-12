@@ -9,7 +9,7 @@
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ArrowRight, Check, RotateCcw, Sparkles, Target, X } from 'lucide-react';
+import { ArrowRight, Check, PenTool, RotateCcw, Sparkles, Target, X } from 'lucide-react';
 import { answerGeneratedQuiz, generateWorkspaceQuiz, type GeneratedQuizQuestion } from '../api/client';
 import { useStudyStore } from '../store/studyStore';
 import { useUserStore } from '../store/userStore';
@@ -18,6 +18,7 @@ import { CompanionAvatar } from './CompanionAvatar';
 import { humanizeConcept, norm01, pct } from './brain';
 import { useCompanionStore } from './store';
 import { useQuizArenaStore, type QuizDifficulty, type QuizMode } from './quizArenaStore';
+import { useCanvasLaunchStore } from '../components/AICanvas/canvasLaunchStore';
 import type { CompanionChatApi } from './useCompanionChat';
 
 type Phase = 'setup' | 'loading' | 'active' | 'complete';
@@ -88,6 +89,7 @@ export const QuizArena: React.FC<{ chat: CompanionChatApi }> = ({ chat }) => {
   const setEmotion = useCompanionStore((s) => s.setEmotion);
   const celebrate = useCompanionStore((s) => s.celebrate);
   const arenaEmotion = useCompanionStore((s) => s.emotion);
+  const launchCanvas = useCanvasLaunchStore((s) => s.launch);
 
   const nodes = graphData?.nodes ?? [];
 
@@ -243,6 +245,20 @@ export const QuizArena: React.FC<{ chat: CompanionChatApi }> = ({ chat }) => {
     setFeedback(null);
     startedAt.current = Date.now();
     setEmotion('teaching', 3500);
+  };
+
+  const openCanvasForMistake = () => {
+    if (!question || !feedback) return;
+    launchCanvas({
+      conceptId: question.concept_id || conceptId,
+      conceptName,
+      prompt: [
+        `I got this quiz question about ${conceptName} wrong.`,
+        `Question: ${question.prompt}`,
+        `Correct answer: ${feedback.answer}`,
+        'Visually walk me through why the correct answer is right.',
+      ].join('\n'),
+    });
   };
 
   const learnMore = (item: ReviewItem) => {
@@ -476,6 +492,11 @@ export const QuizArena: React.FC<{ chat: CompanionChatApi }> = ({ chat }) => {
                       <strong>{feedback.correct ? '✓ Correct!' : '✕ Not quite'}</strong>
                       {!feedback.correct && <p className="quiz-feedback-answer">Correct answer: {feedback.answer}</p>}
                       <p>{feedback.explanation}</p>
+                      {!feedback.correct && (
+                        <button type="button" className="companion-chip subtle" onClick={openCanvasForMistake}>
+                          <PenTool size={13} aria-hidden /> See it on the AI Canvas
+                        </button>
+                      )}
                     </motion.div>
                   )}
                 </AnimatePresence>

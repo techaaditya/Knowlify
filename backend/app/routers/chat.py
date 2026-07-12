@@ -1,6 +1,7 @@
 # API Endpoint - Adaptive Chat
 # Full LLM-powered tutoring grounded in workspace sources, guided by Student Model.
 
+import json
 import os
 from typing import Optional
 
@@ -274,6 +275,31 @@ def _suggested_actions(
     return actions[:4]
 
 
+def _parse_canvas_scene(raw: str) -> dict | None:
+    """Best-effort parse of the canvas-mode LLM reply into a scene dict.
+
+    The model is instructed to return raw JSON, but may still wrap it in
+    markdown fences — same tolerant unwrap already used for answer grading.
+    Returns None on any failure so the caller can fall back to plain text.
+    """
+    if not raw:
+        return None
+    text = raw.strip()
+    if "```" in text:
+        parts = text.split("```")
+        text = parts[1] if len(parts) > 1 else text
+        if text.startswith("json"):
+            text = text[4:]
+        text = text.strip()
+    try:
+        scene = json.loads(text)
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(scene, dict) or "visualization" not in scene or "steps" not in scene:
+        return None
+    return scene
+
+
 def _keyword_grade(answer: str, question: dict | None, concept_name: str | None) -> tuple[bool, str, str | None]:
     """Offline grading fallback for short answers."""
     if not question:
@@ -436,6 +462,17 @@ async def adaptive_chat(
             concept_name=concept_name,
         )
 
+    # 7b. Canvas mode: the raw reply is scene JSON, not prose — parse it and
+    # swap in a short human-readable line for chat history/display, keeping
+    # the full structured scene in its own response field.
+    canvas_scene = None
+    if payload.mode == "canvas":
+        canvas_scene = _parse_canvas_scene(reply)
+        if canvas_scene:
+            step_count = len(canvas_scene.get("steps") or [])
+            scene_title = canvas_scene.get("title") or concept_name or "this concept"
+            reply = f"Here's a visual walkthrough of **{scene_title}** ({step_count} steps) — see the canvas."
+
     # 8. Persist this turn to the user's per-workspace history.
     _save_chat_message(db, current_user, payload.workspace_id, "user", payload.message, payload.concept_id, payload.mode)
     _save_chat_message(db, current_user, payload.workspace_id, "assistant", reply, payload.concept_id, payload.mode)
@@ -466,6 +503,7 @@ async def adaptive_chat(
         ),
         "flashcards": flashcards,
         "quiz": quiz,
+        "canvas_scene": canvas_scene,
         "suggested_actions": _suggested_actions(recommendation, misconceptions, payload.concept_id),
     }
 

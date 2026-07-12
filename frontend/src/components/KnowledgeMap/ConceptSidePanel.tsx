@@ -1,10 +1,11 @@
 import React from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Lightbulb, Lock, MessageCircle, Sparkles, Target } from 'lucide-react';
+import { Lightbulb, Lock, MessageCircle, PenTool, Sparkles, Target } from 'lucide-react';
 import type { GraphNode } from '../../store/studyStore';
 import { useUserStore } from '../../store/userStore';
 import { useCompanionChat } from '../../companion/useCompanionChat';
 import { useQuizArenaStore } from '../../companion/quizArenaStore';
+import { useCanvasLaunchStore } from '../AICanvas/canvasLaunchStore';
 import {
   NODE_PALETTE,
   categoryFor,
@@ -34,6 +35,7 @@ export const ConceptSidePanel: React.FC<Props> = ({ selectedNode, allNodes, edge
   const studentData = useUserStore((s) => s.studentData);
   const chat = useCompanionChat();
   const launchQuiz = useQuizArenaStore((s) => s.launch);
+  const launchCanvas = useCanvasLaunchStore((s) => s.launch);
 
   const topics = (studentData?.topics ?? {}) as Record<string, TopicStat>;
   const recommendedId = React.useMemo(() => recommendNextId(allNodes, topics), [allNodes, topics]);
@@ -104,6 +106,14 @@ export const ConceptSidePanel: React.FC<Props> = ({ selectedNode, allNodes, edge
 
   const takeQuiz = () => {
     launchQuiz({ conceptId: selectedNode.id, conceptName: selectedNode.display_name, autoStart: true });
+  };
+
+  const openCanvas = () => {
+    launchCanvas({
+      conceptId: selectedNode.id,
+      conceptName: selectedNode.display_name,
+      prompt: `Explain ${selectedNode.display_name}`,
+    });
   };
 
   return (
@@ -202,6 +212,9 @@ export const ConceptSidePanel: React.FC<Props> = ({ selectedNode, allNodes, edge
         <footer className="kg-panel-actions">
           <button type="button" className="kg-action-btn primary" onClick={mastery > 0 ? askAI : startLearning} disabled={isLocked}>
             <MessageCircle size={15} aria-hidden /> {mastery > 0 ? 'Ask AI' : 'Start learning'}
+          </button>
+          <button type="button" className="kg-action-btn" onClick={openCanvas} disabled={isLocked}>
+            <PenTool size={15} aria-hidden /> Open AI Canvas
           </button>
           <button type="button" className="kg-action-btn" onClick={takeQuiz} disabled={isLocked}>
             <Target size={15} aria-hidden /> Take quiz

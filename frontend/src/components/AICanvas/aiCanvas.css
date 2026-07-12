@@ -1,0 +1,290 @@
+/* ============================================================
+   AI Canvas — premium teaching whiteboard, in Knowlify's own
+   warm alabaster theme (consistent with the rest of the app —
+   not dark mode, per the same steer applied to the Knowledge Graph).
+   ============================================================ */
+
+.ai-canvas-shell {
+    flex: 1 1 auto;
+    min-height: 0;
+    margin: -0.5rem -2.25rem -2.5rem;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-app);
+    background-image:
+        radial-gradient(ellipse at 0% 0%, rgba(188,168,138,0.09) 0%, transparent 55%),
+        radial-gradient(ellipse at 100% 100%, rgba(210,201,185,0.09) 0%, transparent 55%);
+    position: relative;
+    overflow: hidden;
+}
+
+.ai-canvas-shell.presenting { background: #FFFFFF; }
+
+/* ── Toolbar ──────────────────────────────────────────────── */
+.ai-canvas-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid var(--border-faint);
+    flex-wrap: wrap;
+    flex-shrink: 0;
+}
+
+.ai-canvas-toolbar-title { display: flex; align-items: center; gap: 0.5rem; min-width: 0; }
+.ai-canvas-toolbar-title svg { color: var(--swatch-4); flex-shrink: 0; }
+.ai-canvas-toolbar-title h1 {
+    font-family: var(--font-heading);
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ai-canvas-toolbar-controls { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
+
+.ai-canvas-zoom-group {
+    display: flex; align-items: center; gap: 0.3rem;
+    background: var(--bg-card); border: 1px solid var(--border-soft);
+    border-radius: 999px; padding: 0.25rem 0.5rem;
+}
+.ai-canvas-zoom-group button {
+    width: 26px; height: 26px; display: flex; align-items: center; justify-content: center;
+    border: none; background: transparent; border-radius: 50%; color: var(--text-secondary); cursor: pointer;
+}
+.ai-canvas-zoom-group button:hover { background: var(--bg-hover); color: var(--text-primary); }
+.ai-canvas-zoom-group span { font-size: 0.72rem; font-weight: 700; color: var(--text-secondary); min-width: 34px; text-align: center; }
+
+.ai-canvas-toolbar-btn {
+    display: inline-flex; align-items: center; gap: 0.4rem;
+    font-family: var(--font-body); font-size: 0.82rem; font-weight: 600;
+    padding: 0.5rem 0.9rem; border-radius: var(--radius-md);
+    background: var(--bg-card); border: 1px solid var(--border-soft);
+    color: var(--text-secondary); cursor: pointer;
+    transition: background var(--duration) var(--ease-out), border-color var(--duration) var(--ease-out);
+}
+.ai-canvas-toolbar-btn:hover { background: var(--bg-hover); border-color: var(--border-medium); color: var(--text-primary); }
+
+.ai-canvas-export-wrap { position: relative; }
+.ai-canvas-export-menu {
+    position: absolute; top: calc(100% + 6px); right: 0;
+    background: var(--bg-card); border: 1px solid var(--border-soft); border-radius: var(--radius-md);
+    box-shadow: var(--shadow-lg); overflow: hidden; z-index: 20; min-width: 140px;
+}
+.ai-canvas-export-menu button {
+    display: block; width: 100%; text-align: left; padding: 0.6rem 0.9rem;
+    font-size: 0.8rem; color: var(--text-primary); background: none; border: none; cursor: pointer;
+}
+.ai-canvas-export-menu button:hover { background: var(--bg-hover); }
+
+.ai-canvas-present-exit {
+    position: absolute; top: 1rem; right: 1rem; z-index: 30;
+    display: inline-flex; align-items: center; gap: 0.4rem;
+    font-size: 0.78rem; font-weight: 600; color: var(--text-secondary);
+    background: rgba(255,255,255,0.9); border: 1px solid var(--border-soft);
+    border-radius: 999px; padding: 0.5rem 1rem; cursor: pointer; box-shadow: var(--shadow-md);
+}
+
+/* ── Body / stage ─────────────────────────────────────────── */
+.ai-canvas-body {
+    flex: 1; min-height: 0; overflow: auto;
+    display: flex; flex-direction: column;
+    transform-origin: top center;
+    transition: transform 0.2s var(--ease-out);
+}
+
+.ai-canvas-stage { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+
+.ai-canvas-visual {
+    flex: 1; min-height: 320px;
+    display: flex; align-items: center; justify-content: center;
+    padding: 2rem;
+}
+.ai-canvas-visual-inner { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
+
+.ai-canvas-graph { width: 100%; height: 420px; max-width: 900px; }
+
+/* ── Empty / loading / fallback states ────────────────────── */
+.ai-canvas-empty {
+    flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 0.75rem; text-align: center; padding: 2rem;
+}
+.ai-canvas-empty-icon { font-size: 3rem; opacity: 0.5; }
+.ai-canvas-empty h3 { font-family: var(--font-heading); font-size: 1.15rem; color: var(--text-primary); }
+.ai-canvas-empty p { font-size: 0.86rem; color: var(--text-muted); max-width: 420px; line-height: 1.6; }
+.ai-canvas-empty-spinner {
+    width: 40px; height: 40px; border-radius: 50%;
+    border: 3px solid var(--border-soft); border-top-color: var(--swatch-4);
+    animation: aiCanvasSpin 0.9s linear infinite;
+}
+@keyframes aiCanvasSpin { to { transform: rotate(360deg); } }
+
+.ai-canvas-fallback {
+    flex: 1; display: flex; align-items: center; justify-content: center; padding: 2rem;
+}
+.ai-canvas-fallback p {
+    max-width: 560px; font-size: 0.92rem; line-height: 1.7; color: var(--text-primary);
+    background: var(--bg-card); border: 1px solid var(--border-faint); border-radius: var(--radius-lg);
+    padding: 1.5rem; box-shadow: var(--shadow-sm);
+}
+
+/* ── Narration bar ────────────────────────────────────────── */
+.ai-canvas-narration-bar {
+    flex-shrink: 0;
+    border-top: 1px solid var(--border-faint);
+    background: rgba(255,255,255,0.7);
+    backdrop-filter: blur(12px);
+    padding: 1rem 1.5rem 1.25rem;
+    display: flex; flex-direction: column; gap: 0.75rem;
+}
+
+.ai-canvas-narration {
+    display: flex; align-items: flex-start; gap: 0.5rem;
+    font-size: 0.95rem; line-height: 1.55; color: var(--text-primary);
+    max-width: 720px; margin: 0 auto; text-align: center; justify-content: center;
+}
+.ai-canvas-narration svg { color: var(--swatch-4); flex-shrink: 0; margin-top: 3px; }
+
+.ai-canvas-step-controls {
+    display: flex; align-items: center; justify-content: center; gap: 0.6rem;
+}
+
+.ai-canvas-step-btn {
+    width: 34px; height: 34px; display: flex; align-items: center; justify-content: center;
+    border-radius: 50%; border: 1px solid var(--border-soft); background: var(--bg-card);
+    color: var(--text-secondary); cursor: pointer;
+    transition: background var(--duration) var(--ease-out);
+}
+.ai-canvas-step-btn:hover:not(:disabled) { background: var(--bg-hover); }
+.ai-canvas-step-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.ai-canvas-step-btn.primary {
+    background: linear-gradient(135deg, var(--swatch-4), #a08872); color: #fff; border: none;
+    box-shadow: 0 3px 10px rgba(188,168,138,0.35);
+}
+
+.ai-canvas-step-dots { display: flex; align-items: center; gap: 0.35rem; margin: 0 0.4rem; }
+.ai-canvas-step-dot {
+    width: 7px; height: 7px; border-radius: 50%; border: none; background: var(--border-medium); cursor: pointer;
+    transition: transform 0.15s ease, background 0.15s ease;
+}
+.ai-canvas-step-dot.done { background: var(--swatch-4); }
+.ai-canvas-step-dot.active { background: var(--swatch-4); transform: scale(1.5); }
+
+.ai-canvas-step-count { font-size: 0.72rem; color: var(--text-muted); font-weight: 600; min-width: 42px; }
+
+/* ── Suggestions + composer ───────────────────────────────── */
+.ai-canvas-suggestions {
+    display: flex; flex-wrap: wrap; gap: 0.5rem; justify-content: center;
+    padding: 0 1.5rem 0.75rem;
+}
+.ai-canvas-suggestions button {
+    font-size: 0.78rem; font-weight: 600; color: var(--text-secondary);
+    background: var(--bg-card); border: 1px solid var(--border-soft);
+    border-radius: 999px; padding: 0.4rem 0.9rem; cursor: pointer;
+    transition: all var(--duration) var(--ease-out);
+}
+.ai-canvas-suggestions button:hover { border-color: var(--swatch-4); color: var(--text-primary); background: var(--bg-hover); }
+
+.ai-canvas-composer {
+    display: flex; gap: 0.6rem; align-items: center;
+    padding: 0 1.5rem 1.5rem;
+    max-width: 640px; margin: 0 auto; width: 100%;
+}
+.ai-canvas-composer input {
+    flex: 1; font-size: 0.88rem; color: var(--text-primary);
+    background: var(--bg-input); border: 1px solid var(--border-soft);
+    border-radius: 999px; padding: 0.75rem 1.1rem; outline: none;
+    box-shadow: var(--shadow-xs);
+}
+.ai-canvas-composer input:focus { border-color: var(--swatch-4); box-shadow: 0 0 0 3px rgba(188,168,138,0.14); }
+.ai-canvas-composer button {
+    width: 42px; height: 42px; border-radius: 50%; border: none; flex-shrink: 0;
+    background: linear-gradient(135deg, var(--swatch-4), #a08872); color: #fff; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 3px 12px rgba(188,168,138,0.35);
+}
+.ai-canvas-composer button:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* ── Equation renderer ─────────────────────────────────────── */
+.ai-canvas-equation { display: flex; flex-direction: column; align-items: center; gap: 1.25rem; }
+.ai-canvas-equation-render { font-size: 1.6rem; color: var(--text-primary); }
+.ai-canvas-equation-raw { font-family: var(--font-mono); font-size: 1.1rem; color: var(--text-primary); }
+.ai-canvas-equation-terms { display: flex; flex-wrap: wrap; gap: 0.5rem; justify-content: center; }
+.ai-canvas-term-chip {
+    font-family: var(--font-mono); font-size: 0.8rem; font-weight: 600;
+    background: rgba(188,168,138,0.12); border: 1px solid rgba(188,168,138,0.3);
+    color: var(--text-secondary); padding: 0.3rem 0.7rem; border-radius: 8px;
+}
+
+/* ── Comparison renderer ──────────────────────────────────── */
+.ai-canvas-comparison table { border-collapse: separate; border-spacing: 0; background: var(--bg-card); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-sm); }
+.ai-canvas-comparison th {
+    font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
+    color: var(--text-muted); background: var(--swatch-2); padding: 0.75rem 1.25rem; text-align: left;
+}
+.ai-canvas-comparison td { padding: 0.75rem 1.25rem; font-size: 0.88rem; color: var(--text-primary); border-top: 1px solid var(--border-faint); }
+.ai-canvas-comparison-label { font-weight: 700; color: var(--text-secondary); }
+
+/* ── Timeline renderer ─────────────────────────────────────── */
+.ai-canvas-timeline { display: flex; flex-direction: column; gap: 0; max-width: 480px; }
+.ai-canvas-timeline-item { position: relative; display: flex; gap: 1rem; padding-bottom: 1.5rem; }
+.ai-canvas-timeline-dot {
+    width: 14px; height: 14px; border-radius: 50%; background: var(--border-medium); flex-shrink: 0; margin-top: 4px;
+    box-shadow: 0 0 0 4px var(--bg-app);
+}
+.ai-canvas-timeline-item.active .ai-canvas-timeline-dot { background: var(--swatch-4); box-shadow: 0 0 0 4px var(--bg-app), 0 0 10px rgba(188,168,138,0.5); }
+.ai-canvas-timeline-line { position: absolute; left: 6px; top: 20px; bottom: 0; width: 2px; background: var(--border-faint); }
+.ai-canvas-timeline-body strong { font-size: 0.92rem; color: var(--text-primary); }
+.ai-canvas-timeline-body p { font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.2rem; line-height: 1.5; }
+
+/* ── Summary card ──────────────────────────────────────────── */
+.ai-canvas-summary-overlay {
+    position: fixed; inset: 0; z-index: 200;
+    background: rgba(59,56,51,0.35); backdrop-filter: blur(6px);
+    display: flex; align-items: center; justify-content: center; padding: 1.5rem;
+}
+.ai-canvas-summary-card {
+    width: min(560px, 100%); max-height: 85vh; overflow-y: auto;
+    background: var(--bg-app); border-radius: var(--radius-xl); box-shadow: var(--shadow-lg);
+    border: 1px solid var(--border-soft);
+}
+.ai-canvas-summary-card header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--border-faint);
+}
+.ai-canvas-summary-card h2 { font-family: var(--font-heading); font-size: 1.15rem; color: var(--text-primary); }
+.ai-canvas-summary-card header button { background: none; border: none; color: var(--text-muted); cursor: pointer; }
+.ai-canvas-summary-empty { padding: 2rem 1.5rem; color: var(--text-muted); font-size: 0.88rem; text-align: center; }
+.ai-canvas-summary-body { padding: 1.25rem 1.5rem 1.5rem; display: flex; flex-direction: column; gap: 1.25rem; }
+.ai-canvas-summary-body h3 { display: flex; align-items: center; gap: 0.4rem; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; color: var(--text-muted); margin-bottom: 0.6rem; }
+.ai-canvas-summary-body h3 svg { color: var(--swatch-4); }
+.ai-canvas-summary-chips { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.ai-canvas-summary-chip { font-size: 0.78rem; font-weight: 600; background: var(--swatch-2); border: 1px solid var(--border-faint); border-radius: 999px; padding: 0.3rem 0.75rem; color: var(--text-secondary); }
+.ai-canvas-summary-list { display: flex; flex-direction: column; gap: 0.4rem; font-size: 0.84rem; color: var(--text-primary); padding-left: 1rem; }
+.ai-canvas-summary-list.mono { font-family: var(--font-mono); font-size: 0.78rem; }
+.ai-canvas-summary-stats { display: flex; gap: 1.5rem; flex-wrap: wrap; border-top: 1px solid var(--border-faint); padding-top: 1rem; }
+.ai-canvas-summary-stats > div { display: flex; flex-direction: column; gap: 0.2rem; }
+.ai-canvas-summary-stats svg { color: var(--swatch-4); }
+.ai-canvas-summary-stats span { font-size: 0.7rem; color: var(--text-muted); }
+.ai-canvas-summary-stats strong { font-size: 0.9rem; color: var(--text-primary); }
+.ai-canvas-summary-quiz-btn {
+    align-self: flex-start; font-size: 0.85rem; font-weight: 700; color: #fff;
+    background: linear-gradient(135deg, var(--swatch-4), #a08872); border: none; border-radius: var(--radius-md);
+    padding: 0.7rem 1.25rem; cursor: pointer; box-shadow: 0 3px 12px rgba(188,168,138,0.35);
+}
+
+/* ── Presentation mode ─────────────────────────────────────── */
+.ai-canvas-shell.presenting .ai-canvas-toolbar,
+.ai-canvas-shell.presenting .ai-canvas-composer,
+.ai-canvas-shell.presenting .ai-canvas-suggestions {
+    display: none;
+}
+
+@media (max-width: 720px) {
+    .ai-canvas-toolbar { padding: 0.75rem 1rem; }
+    .ai-canvas-visual { padding: 1rem; }
+    .ai-canvas-graph { height: 300px; }
+}

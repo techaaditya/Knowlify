@@ -61,7 +61,7 @@ const roundedRectPath = (ctx: CanvasRenderingContext2D, x: number, y: number, w:
   ctx.closePath();
 };
 
-export const ConceptGraph = forwardRef<ConceptGraphHandle, Props>(({ filters }, ref) => {
+export const ConceptGraph = forwardRef<ConceptGraphHandle, Props>(function ConceptGraph({ filters }, ref) {
   const containerRef = useRef<HTMLDivElement>(null);
   const networkRef = useRef<Network | null>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
@@ -333,8 +333,6 @@ export const ConceptGraph = forwardRef<ConceptGraphHandle, Props>(({ filters }, 
     </>
   );
 });
-
-ConceptGraph.displayName = 'ConceptGraph';
 
 // ── Canvas rendering helpers ─────────────────────────────────────────────────
 

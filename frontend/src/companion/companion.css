@@ -817,6 +817,7 @@
 .quiz-feedback.wrong { background: var(--weak-bg); border: 1px solid var(--weak-border); color: #7c4940; }
 .quiz-feedback strong { display: block; font-family: var(--font-heading); font-size: 0.95rem; margin-bottom: 0.35rem; }
 .quiz-feedback-answer { font-weight: 600; margin-bottom: 0.3rem; }
+.quiz-feedback .companion-chip { margin-top: 0.6rem; }
 
 .quiz-actions { display: flex; justify-content: flex-end; }
 .quiz-actions .quiz-start-btn { min-width: 160px; }

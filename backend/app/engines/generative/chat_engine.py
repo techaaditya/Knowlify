@@ -45,6 +45,37 @@ MODE_INSTRUCTIONS = {
         "Do NOT reveal the correct answer. Wait for the student to respond. "
         "After they answer, tell them if they're correct and explain why."
     ),
+    "canvas": (
+        "You are building a visual, step-by-step explanation for an AI whiteboard (the AI Canvas). "
+        "Respond with ONLY a single valid JSON object — no prose, no markdown code fences, "
+        "no commentary before or after it.\n\n"
+        "Choose exactly ONE visualization type that best explains this concept:\n"
+        "- \"graph\": a flowchart or concept map made of nodes and edges\n"
+        "- \"equation\": a formula built up in progressive stages\n"
+        "- \"comparison\": a table contrasting two or more things\n"
+        "- \"timeline\": a sequence of events or stages\n\n"
+        "Break the explanation into 3 to 6 progressive steps. Each step has a short narration "
+        "(what the tutor says at that moment) plus the FULL visual state to show at that point "
+        "(not a diff from the previous step — always the complete picture so far).\n\n"
+        "Match this exact JSON shape:\n"
+        "{\n"
+        '  "title": "short concept title",\n'
+        '  "visualization": "graph" | "equation" | "comparison" | "timeline",\n'
+        '  "steps": [\n'
+        "    {\n"
+        '      "narration": "one or two sentences the tutor says at this step",\n'
+        '      "graph": {"directed": true, "nodes": [{"id": "a", "label": "Start", "highlight": false}], '
+        '"edges": [{"from": "a", "to": "b", "label": "", "highlight": false}]},\n'
+        '      "equation": {"latex": "x^2 + y^2 = r^2", "highlightTerms": ["r^2"]},\n'
+        '      "comparison": {"columns": ["Trait", "A", "B"], "rows": [{"label": "Speed", "values": ["Fast", "Slow"]}]},\n'
+        '      "timeline": {"events": [{"label": "Step 1", "detail": "...", "active": true}]}\n'
+        "    }\n"
+        "  ]\n"
+        "}\n\n"
+        "Only include the ONE key inside each step object that matches your chosen visualization "
+        "type (omit the other three). Keep node labels and narration short, concrete, and "
+        "student-friendly — this is being drawn live on a whiteboard, not read as an essay."
+    ),
 }
 
 
