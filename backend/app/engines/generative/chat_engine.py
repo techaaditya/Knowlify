@@ -80,28 +80,18 @@ MODE_INSTRUCTIONS = {
 
 
 def _get_chat_client() -> OpenAI:
-    """Create an OpenAI client using the chatbot-specific API key."""
+    """Create an OpenAI client for the cloud chat model, using the chatbot-specific API key."""
     return OpenAI(
-        base_url=settings.OLLAMA_BASE_URL,
+        base_url=settings.OLLAMA_CLOUD_URL,
         api_key=settings.CHAT_API_KEY,
         timeout=60.0,
     )
 
 
 def _chat_model_candidates() -> list[str]:
-    """Return primary and local fallback chat models without duplicates."""
-    candidates = [
-        settings.CHAT_MODEL,
-        settings.CHAT_FALLBACK_MODEL,
-    ]
-    seen = set()
-    unique = []
-    for model in candidates:
-        model_name = (model or "").strip().strip('"').strip("'")
-        if model_name and model_name not in seen:
-            seen.add(model_name)
-            unique.append(model_name)
-    return unique
+    """Return the configured chat model."""
+    model_name = (settings.CHAT_MODEL or "").strip().strip('"').strip("'")
+    return [model_name] if model_name else []
 
 
 def build_source_context(
