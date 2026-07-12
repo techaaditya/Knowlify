@@ -19,6 +19,8 @@ export const GraphRenderer: React.FC<Props> = ({ payload }) => {
   useEffect(() => {
     if (!containerRef.current) return;
 
+    const isTree = payload.layout === 'tree';
+
     const nodes = payload.nodes.map((n) => ({
       id: n.id,
       label: n.label,
@@ -47,22 +49,43 @@ export const GraphRenderer: React.FC<Props> = ({ payload }) => {
         opacity: e.highlight ? 1 : 0.7,
       },
       width: e.highlight ? 2.5 : 1.5,
-      smooth: { type: 'cubicBezier', forceDirection: 'horizontal', roundness: 0.45 },
+      smooth: isTree
+        ? { type: 'cubicBezier', forceDirection: 'vertical', roundness: 0.5 }
+        : { type: 'cubicBezier', forceDirection: 'horizontal', roundness: 0.45 },
     }));
 
     const network = new Network(
       containerRef.current,
       { nodes, edges },
-      {
-        autoResize: true,
-        interaction: { dragNodes: true, dragView: true, zoomView: true, hover: false, selectable: false },
-        physics: {
-          enabled: true,
-          solver: 'forceAtlas2Based',
-          forceAtlas2Based: { gravitationalConstant: -60, springLength: 110, springConstant: 0.08, damping: 0.5 },
-          stabilization: { iterations: 120, fit: true },
-        },
-      } as never,
+      (isTree
+        ? {
+            // Hierarchical top-down layout: for binary/decision/AVL/red-black
+            // trees, org charts, file systems, and process trees, a
+            // force-directed layout produces unreadable spaghetti — a proper
+            // level-by-level tree is what the shape actually calls for.
+            autoResize: true,
+            interaction: { dragNodes: true, dragView: true, zoomView: true, hover: false, selectable: false },
+            layout: {
+              hierarchical: {
+                enabled: true,
+                direction: 'UD',
+                sortMethod: 'directed',
+                levelSeparation: 90,
+                nodeSpacing: 130,
+              },
+            },
+            physics: { enabled: false },
+          }
+        : {
+            autoResize: true,
+            interaction: { dragNodes: true, dragView: true, zoomView: true, hover: false, selectable: false },
+            physics: {
+              enabled: true,
+              solver: 'forceAtlas2Based',
+              forceAtlas2Based: { gravitationalConstant: -60, springLength: 110, springConstant: 0.08, damping: 0.5 },
+              stabilization: { iterations: 120, fit: true },
+            },
+          }) as never,
     );
     networkRef.current = network;
 
