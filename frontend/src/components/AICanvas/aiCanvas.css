@@ -88,15 +88,41 @@
     border-radius: 999px; padding: 0.5rem 1rem; cursor: pointer; box-shadow: var(--shadow-md);
 }
 
-/* ── Body / stage ─────────────────────────────────────────── */
-.ai-canvas-body {
-    flex: 1; min-height: 0; overflow: auto;
-    display: flex; flex-direction: column;
-    transform-origin: top center;
-    transition: transform 0.2s var(--ease-out);
+/* ── Infinite canvas ──────────────────────────────────────────
+   A genuinely pannable/zoomable background (drag the empty space,
+   scroll to pan, ctrl/pinch to zoom) with the current teaching
+   "card" floating on top — not just a fixed box that scales. */
+.ai-canvas-infinite {
+    flex: 1; min-height: 0; position: relative; overflow: hidden;
+    cursor: grab;
+}
+.ai-canvas-infinite:active { cursor: grabbing; }
+
+.ai-canvas-grid-bg {
+    position: absolute; inset: -2000px;
+    background-image: radial-gradient(var(--border-medium) 1px, transparent 1px);
+    background-size: 26px 26px;
+    opacity: 0.35;
+    pointer-events: none;
 }
 
-.ai-canvas-stage { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+.ai-canvas-card {
+    position: absolute;
+    top: 50%; left: 50%;
+    width: min(760px, calc(100vw - 4rem));
+    transform-origin: center;
+    background: rgba(255,255,255,0.55);
+    backdrop-filter: blur(6px);
+    border: 1px solid var(--border-faint);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-lg);
+    pointer-events: auto;
+}
+@media (max-width: 820px) {
+    .ai-canvas-card { width: calc(100vw - 2rem); }
+}
+
+.ai-canvas-stage { display: flex; flex-direction: column; min-height: 520px; }
 
 .ai-canvas-visual {
     flex: 1; min-height: 320px;
@@ -175,38 +201,80 @@
 
 .ai-canvas-step-count { font-size: 0.72rem; color: var(--text-muted); font-weight: 600; min-width: 42px; }
 
-/* ── Suggestions + composer ───────────────────────────────── */
+/* ── Floating AI chat (composer + suggestions) ────────────────
+   Genuinely floats over the infinite canvas rather than pinning
+   the layout — matches the brief's "Floating AI Chat" element. */
+.ai-canvas-floating-chat {
+    position: absolute;
+    left: 50%;
+    bottom: 1.5rem;
+    transform: translateX(-50%);
+    z-index: 15;
+    display: flex; flex-direction: column; gap: 0.6rem; align-items: center;
+    width: min(640px, calc(100vw - 3rem));
+}
+
 .ai-canvas-suggestions {
     display: flex; flex-wrap: wrap; gap: 0.5rem; justify-content: center;
-    padding: 0 1.5rem 0.75rem;
 }
 .ai-canvas-suggestions button {
     font-size: 0.78rem; font-weight: 600; color: var(--text-secondary);
-    background: var(--bg-card); border: 1px solid var(--border-soft);
+    background: rgba(255,255,255,0.9); backdrop-filter: blur(8px);
+    border: 1px solid var(--border-soft);
     border-radius: 999px; padding: 0.4rem 0.9rem; cursor: pointer;
+    box-shadow: var(--shadow-sm);
     transition: all var(--duration) var(--ease-out);
 }
 .ai-canvas-suggestions button:hover { border-color: var(--swatch-4); color: var(--text-primary); background: var(--bg-hover); }
 
 .ai-canvas-composer {
     display: flex; gap: 0.6rem; align-items: center;
-    padding: 0 1.5rem 1.5rem;
-    max-width: 640px; margin: 0 auto; width: 100%;
+    width: 100%;
+    background: rgba(255,255,255,0.92);
+    backdrop-filter: blur(14px);
+    border: 1px solid var(--border-soft);
+    border-radius: 999px;
+    padding: 0.5rem 0.5rem 0.5rem 1.1rem;
+    box-shadow: var(--shadow-lg);
 }
 .ai-canvas-composer input {
     flex: 1; font-size: 0.88rem; color: var(--text-primary);
-    background: var(--bg-input); border: 1px solid var(--border-soft);
-    border-radius: 999px; padding: 0.75rem 1.1rem; outline: none;
-    box-shadow: var(--shadow-xs);
+    background: none; border: none; outline: none;
 }
-.ai-canvas-composer input:focus { border-color: var(--swatch-4); box-shadow: 0 0 0 3px rgba(188,168,138,0.14); }
 .ai-canvas-composer button {
-    width: 42px; height: 42px; border-radius: 50%; border: none; flex-shrink: 0;
+    width: 40px; height: 40px; border-radius: 50%; border: none; flex-shrink: 0;
     background: linear-gradient(135deg, var(--swatch-4), #a08872); color: #fff; cursor: pointer;
     display: flex; align-items: center; justify-content: center;
     box-shadow: 0 3px 12px rgba(188,168,138,0.35);
 }
 .ai-canvas-composer button:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* ── Floating tool palette (visualization type override) ─────
+   Defaults to "Auto" (the AI decides) — matches the brief's
+   "Floating Tool Palette" element. */
+.ai-canvas-type-palette {
+    position: absolute;
+    top: 6.5rem;
+    right: 1.5rem;
+    z-index: 15;
+    display: flex; flex-direction: column; gap: 0.3rem;
+    background: rgba(255,255,255,0.9); backdrop-filter: blur(10px);
+    border: 1px solid var(--border-soft);
+    border-radius: 999px;
+    padding: 0.4rem;
+    box-shadow: var(--shadow-md);
+}
+.ai-canvas-type-btn {
+    width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;
+    border: none; border-radius: 50%; background: transparent; color: var(--text-muted); cursor: pointer;
+    transition: background var(--duration) var(--ease-out), color var(--duration) var(--ease-out);
+}
+.ai-canvas-type-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+.ai-canvas-type-btn.active { background: linear-gradient(135deg, var(--swatch-4), #a08872); color: #fff; }
+
+@media (max-width: 820px) {
+    .ai-canvas-type-palette { flex-direction: row; top: auto; bottom: 8.5rem; right: 50%; transform: translateX(50%); }
+}
 
 /* ── Equation renderer ─────────────────────────────────────── */
 .ai-canvas-equation { display: flex; flex-direction: column; align-items: center; gap: 1.25rem; }
@@ -276,10 +344,16 @@
     padding: 0.7rem 1.25rem; cursor: pointer; box-shadow: 0 3px 12px rgba(188,168,138,0.35);
 }
 
+/* ── Chart renderer ───────────────────────────────────────────── */
+.ai-canvas-chart { width: 100%; max-width: 600px; }
+.ai-canvas-chart svg { display: block; width: 100%; height: auto; }
+
 /* ── Presentation mode ─────────────────────────────────────── */
 .ai-canvas-shell.presenting .ai-canvas-toolbar,
 .ai-canvas-shell.presenting .ai-canvas-composer,
-.ai-canvas-shell.presenting .ai-canvas-suggestions {
+.ai-canvas-shell.presenting .ai-canvas-suggestions,
+.ai-canvas-shell.presenting .ai-canvas-floating-chat,
+.ai-canvas-shell.presenting .ai-canvas-type-palette {
     display: none;
 }
 

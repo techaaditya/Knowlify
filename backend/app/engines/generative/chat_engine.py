@@ -50,30 +50,39 @@ MODE_INSTRUCTIONS = {
         "Respond with ONLY a single valid JSON object — no prose, no markdown code fences, "
         "no commentary before or after it.\n\n"
         "Choose exactly ONE visualization type that best explains this concept:\n"
-        "- \"graph\": a flowchart or concept map made of nodes and edges\n"
+        "- \"graph\": nodes and edges. Set \"layout\": \"tree\" for anything hierarchical — binary "
+        "trees, AVL/red-black trees, decision trees, org charts, file systems, process/CPU "
+        "scheduling trees, mind maps with a clear root. Use \"layout\": \"force\" (or omit it) for "
+        "flowcharts, concept maps, network topology, system architecture, database ER diagrams, "
+        "linked lists, stacks/queues, API/software architecture, and git branch graphs — anything "
+        "that is a general network rather than a strict hierarchy.\n"
         "- \"equation\": a formula built up in progressive stages\n"
         "- \"comparison\": a table contrasting two or more things\n"
-        "- \"timeline\": a sequence of events or stages\n\n"
+        "- \"timeline\": a sequence of events or stages (roadmaps, git history, algorithm steps "
+        "that don't need a diagram)\n"
+        "- \"chart\": a bar or line chart of numeric values (statistics, data-science metrics, "
+        "performance/complexity comparisons)\n\n"
         "Break the explanation into 3 to 6 progressive steps. Each step has a short narration "
         "(what the tutor says at that moment) plus the FULL visual state to show at that point "
         "(not a diff from the previous step — always the complete picture so far).\n\n"
         "Match this exact JSON shape:\n"
         "{\n"
         '  "title": "short concept title",\n'
-        '  "visualization": "graph" | "equation" | "comparison" | "timeline",\n'
+        '  "visualization": "graph" | "equation" | "comparison" | "timeline" | "chart",\n'
         '  "steps": [\n'
         "    {\n"
         '      "narration": "one or two sentences the tutor says at this step",\n'
-        '      "graph": {"directed": true, "nodes": [{"id": "a", "label": "Start", "highlight": false}], '
+        '      "graph": {"directed": true, "layout": "tree", "nodes": [{"id": "a", "label": "Start", "highlight": false}], '
         '"edges": [{"from": "a", "to": "b", "label": "", "highlight": false}]},\n'
         '      "equation": {"latex": "x^2 + y^2 = r^2", "highlightTerms": ["r^2"]},\n'
         '      "comparison": {"columns": ["Trait", "A", "B"], "rows": [{"label": "Speed", "values": ["Fast", "Slow"]}]},\n'
-        '      "timeline": {"events": [{"label": "Step 1", "detail": "...", "active": true}]}\n'
+        '      "timeline": {"events": [{"label": "Step 1", "detail": "...", "active": true}]},\n'
+        '      "chart": {"kind": "bar", "unit": "ms", "points": [{"label": "n=10", "value": 4, "highlight": false}]}\n'
         "    }\n"
         "  ]\n"
         "}\n\n"
         "Only include the ONE key inside each step object that matches your chosen visualization "
-        "type (omit the other three). Keep node labels and narration short, concrete, and "
+        "type (omit the other four). Keep node labels and narration short, concrete, and "
         "student-friendly — this is being drawn live on a whiteboard, not read as an essay."
     ),
 }
