@@ -295,9 +295,48 @@ def _parse_canvas_scene(raw: str) -> dict | None:
         scene = json.loads(text)
     except json.JSONDecodeError:
         return None
-    if not isinstance(scene, dict) or "visualization" not in scene or "steps" not in scene:
+    if not isinstance(scene, dict) or "visualization" not in scene:
         return None
-    return scene
+    # Well-formed scene with progressive steps — use as-is.
+    if isinstance(scene.get("steps"), list) and scene["steps"]:
+        return scene
+    # Salvage a flattened scene: weaker models sometimes drop the "steps"
+    # wrapper and put the payload (e.g. chart "points", graph "nodes") at the
+    # top level. Rebuild a single-step scene so it still renders as a diagram
+    # instead of dumping raw JSON at the student.
+    return _wrap_flat_scene(scene)
+
+
+# Maps a visualization type to the top-level keys a flattened reply might carry.
+_FLAT_PAYLOAD_KEYS: dict[str, tuple[str, ...]] = {
+    "graph": ("nodes", "edges", "layout", "directed"),
+    "equation": ("latex", "highlightTerms"),
+    "comparison": ("columns", "rows"),
+    "timeline": ("events",),
+    "chart": ("kind", "unit", "points"),
+    "plot": ("functions", "xRange", "yRange", "points"),
+}
+
+
+def _wrap_flat_scene(scene: dict) -> dict | None:
+    """Rebuild a one-step scene from a reply that flattened the payload."""
+    viz = scene.get("visualization")
+    keys = _FLAT_PAYLOAD_KEYS.get(viz)
+    if not keys:
+        return None
+    payload = {k: scene[k] for k in keys if k in scene}
+    if not payload:
+        return None
+    # A chart/plot with no usable data isn't worth rendering.
+    if viz == "chart" and not payload.get("points"):
+        return None
+    if viz == "plot" and not payload.get("functions"):
+        return None
+    return {
+        "title": scene.get("title") or "Concept",
+        "visualization": viz,
+        "steps": [{"narration": scene.get("narration") or "", viz: payload}],
+    }
 
 
 def _keyword_grade(answer: str, question: dict | None, concept_name: str | None) -> tuple[bool, str, str | None]:
@@ -472,6 +511,14 @@ async def adaptive_chat(
             step_count = len(canvas_scene.get("steps") or [])
             scene_title = canvas_scene.get("title") or concept_name or "this concept"
             reply = f"Here's a visual walkthrough of **{scene_title}** ({step_count} steps) — see the canvas."
+        else:
+            # The reply wasn't usable scene JSON — never show the student the raw
+            # JSON/model output. Give a clean, actionable message instead.
+            reply = (
+                "I couldn't sketch that one out as a diagram just now. "
+                "Try rephrasing (for example, name concrete values like \"y = 2x + 1\") "
+                "or ask again — I'll take another pass at it."
+            )
 
     # 8. Persist this turn to the user's per-workspace history.
     _save_chat_message(db, current_user, payload.workspace_id, "user", payload.message, payload.concept_id, payload.mode)

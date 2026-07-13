@@ -1,7 +1,7 @@
 import React from 'react';
-import { Sparkles, Share2, GitBranch, Sigma, BarChart3, Table2, ListOrdered, type LucideIcon } from 'lucide-react';
+import { Sparkles, Share2, GitBranch, Sigma, BarChart3, LineChart, Table2, ListOrdered, type LucideIcon } from 'lucide-react';
 
-export type PaletteChoice = 'auto' | 'graph' | 'tree' | 'equation' | 'chart' | 'comparison' | 'timeline';
+export type PaletteChoice = 'auto' | 'graph' | 'tree' | 'equation' | 'plot' | 'chart' | 'comparison' | 'timeline';
 
 interface Props {
   value: PaletteChoice;
@@ -13,6 +13,7 @@ const OPTIONS: Array<{ id: PaletteChoice; label: string; Icon: LucideIcon }> = [
   { id: 'graph', label: 'Graph', Icon: Share2 },
   { id: 'tree', label: 'Tree', Icon: GitBranch },
   { id: 'equation', label: 'Equation', Icon: Sigma },
+  { id: 'plot', label: 'Plot', Icon: LineChart },
   { id: 'chart', label: 'Chart', Icon: BarChart3 },
   { id: 'comparison', label: 'Compare', Icon: Table2 },
   { id: 'timeline', label: 'Timeline', Icon: ListOrdered },

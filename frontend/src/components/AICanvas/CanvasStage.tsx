@@ -7,6 +7,7 @@ import { EquationRenderer } from './renderers/EquationRenderer';
 import { ComparisonRenderer } from './renderers/ComparisonRenderer';
 import { TimelineRenderer } from './renderers/TimelineRenderer';
 import { ChartRenderer } from './renderers/ChartRenderer';
+import { PlotRenderer } from './renderers/PlotRenderer';
 
 export const CanvasStage: React.FC = () => {
   const scene = useCanvasSessionStore((s) => s.scene);
@@ -77,6 +78,7 @@ export const CanvasStage: React.FC = () => {
             {scene.visualization === 'comparison' && step.comparison && <ComparisonRenderer payload={step.comparison} />}
             {scene.visualization === 'timeline' && step.timeline && <TimelineRenderer payload={step.timeline} />}
             {scene.visualization === 'chart' && step.chart && <ChartRenderer payload={step.chart} />}
+            {scene.visualization === 'plot' && step.plot && <PlotRenderer payload={step.plot} />}
           </motion.div>
         </AnimatePresence>
       </div>

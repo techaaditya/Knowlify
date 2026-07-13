@@ -50,25 +50,35 @@ MODE_INSTRUCTIONS = {
         "Respond with ONLY a single valid JSON object — no prose, no markdown code fences, "
         "no commentary before or after it.\n\n"
         "Choose exactly ONE visualization type that best explains this concept:\n"
-        "- \"graph\": nodes and edges. Set \"layout\": \"tree\" for anything hierarchical — binary "
-        "trees, AVL/red-black trees, decision trees, org charts, file systems, process/CPU "
-        "scheduling trees, mind maps with a clear root. Use \"layout\": \"force\" (or omit it) for "
-        "flowcharts, concept maps, network topology, system architecture, database ER diagrams, "
-        "linked lists, stacks/queues, API/software architecture, and git branch graphs — anything "
-        "that is a general network rather than a strict hierarchy.\n"
+        "- \"graph\": nodes and edges (a NETWORK/hierarchy diagram, NOT a plotted curve). Set "
+        "\"layout\": \"tree\" for anything hierarchical — binary trees, AVL/red-black trees, "
+        "decision trees, org charts, file systems, process/CPU scheduling trees, mind maps with a "
+        "clear root. Use \"layout\": \"force\" (or omit it) for flowcharts, concept maps, network "
+        "topology, system architecture, database ER diagrams, linked lists, stacks/queues, "
+        "API/software architecture, and git branch graphs — anything that is a general network "
+        "rather than a strict hierarchy.\n"
         "- \"equation\": a formula built up in progressive stages\n"
         "- \"comparison\": a table contrasting two or more things\n"
         "- \"timeline\": a sequence of events or stages (roadmaps, git history, algorithm steps "
         "that don't need a diagram)\n"
-        "- \"chart\": a bar or line chart of numeric values (statistics, data-science metrics, "
-        "performance/complexity comparisons)\n\n"
+        "- \"chart\": a bar or line chart of DISCRETE/categorical numeric values (statistics, "
+        "data-science metrics, performance/complexity comparisons across labelled categories). "
+        "Use it for data, NOT for plotting a mathematical function.\n"
+        "- \"plot\": a continuous function graph on a real Cartesian grid with x/y axes and "
+        "gridlines (like Desmos). USE THIS whenever the student asks to \"graph\", \"plot\", or "
+        "\"draw\" a mathematical function or equation — y = mx + c, quadratics, exponential/growth "
+        "curves, trig, etc. Give the function(s) as an expression in terms of x; the whiteboard "
+        "evaluates and draws the smooth curve itself, so you do NOT compute points.\n\n"
+        "CRITICAL: When the request is to plot/graph/draw a FUNCTION or EQUATION, you MUST use the "
+        "\"plot\" type. NEVER use the node \"graph\" type for a function — that is only for "
+        "networks, trees, and flowcharts, never for a curve on a coordinate plane.\n\n"
         "Break the explanation into 3 to 6 progressive steps. Each step has a short narration "
         "(what the tutor says at that moment) plus the FULL visual state to show at that point "
         "(not a diff from the previous step — always the complete picture so far).\n\n"
         "Match this exact JSON shape:\n"
         "{\n"
         '  "title": "short concept title",\n'
-        '  "visualization": "graph" | "equation" | "comparison" | "timeline" | "chart",\n'
+        '  "visualization": "graph" | "equation" | "comparison" | "timeline" | "chart" | "plot",\n'
         '  "steps": [\n'
         "    {\n"
         '      "narration": "one or two sentences the tutor says at this step",\n'
@@ -77,13 +87,17 @@ MODE_INSTRUCTIONS = {
         '      "equation": {"latex": "x^2 + y^2 = r^2", "highlightTerms": ["r^2"]},\n'
         '      "comparison": {"columns": ["Trait", "A", "B"], "rows": [{"label": "Speed", "values": ["Fast", "Slow"]}]},\n'
         '      "timeline": {"events": [{"label": "Step 1", "detail": "...", "active": true}]},\n'
-        '      "chart": {"kind": "bar", "unit": "ms", "points": [{"label": "n=10", "value": 4, "highlight": false}]}\n'
+        '      "chart": {"kind": "bar", "unit": "ms", "points": [{"label": "n=10", "value": 4, "highlight": false}]},\n'
+        '      "plot": {"functions": [{"expr": "-x + 1", "label": "y = -x + 1", "highlight": true}], '
+        '"xRange": [-5, 5], "points": [{"x": 0, "y": 1, "label": "y-intercept"}]}\n'
         "    }\n"
         "  ]\n"
         "}\n\n"
         "Only include the ONE key inside each step object that matches your chosen visualization "
-        "type (omit the other four). Keep node labels and narration short, concrete, and "
-        "student-friendly — this is being drawn live on a whiteboard, not read as an essay."
+        "type (omit the others). For \"plot\", write expr in terms of x using ^ for powers and "
+        "functions like sin, cos, sqrt, exp, ln (e.g. \"x^2\", \"2*sin(x)\", \"exp(x)\"); pick an "
+        "xRange that shows the interesting behaviour. Keep labels and narration short, concrete, "
+        "and student-friendly — this is being drawn live on a whiteboard, not read as an essay."
     ),
 }
 
@@ -93,7 +107,9 @@ def _get_chat_client() -> OpenAI:
     return OpenAI(
         base_url=settings.OLLAMA_CLOUD_URL,
         api_key=settings.CHAT_API_KEY,
-        timeout=60.0,
+        # Local models generating a full canvas scene can take 30–60s on
+        # modest hardware; a tight timeout would cut them off mid-generation.
+        timeout=180.0,
     )
 
 
@@ -372,6 +388,13 @@ def generate_chat_response(
     client = _get_chat_client()
     first_error: Exception | None = None
 
+    # Canvas replies must be a single JSON object. Asking the model for JSON
+    # mode makes even smaller local models emit syntactically valid JSON
+    # (no prose, no markdown fences), which the scene parser then renders.
+    extra_kwargs: dict = {}
+    if mode == "canvas":
+        extra_kwargs["response_format"] = {"type": "json_object"}
+
     for model_name in _chat_model_candidates():
         try:
             response = client.chat.completions.create(
@@ -379,6 +402,7 @@ def generate_chat_response(
                 messages=messages,
                 temperature=0.4,
                 max_tokens=1500,
+                **extra_kwargs,
             )
             return response.choices[0].message.content or "I'm sorry, I couldn't generate a response."
         except Exception as exc:
