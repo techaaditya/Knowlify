@@ -10,7 +10,11 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@types/katex": "^0.16.8",
     "axios": "^1.6.8",
+    "framer-motion": "^11.18.2",
+    "html-to-image": "^1.11.13",
+    "katex": "^0.16.47",
     "lucide-react": "^0.378.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",

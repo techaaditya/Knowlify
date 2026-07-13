@@ -13,8 +13,10 @@ def get_kw_model():
     return kw_model 
 
 def get_llm_client():
+    # gpt-oss:120b-cloud is hit directly on ollama.com's OpenAI-compatible
+    # endpoint, not the local daemon, so it doesn't require device sign-in.
     return OpenAI(
-        base_url=os.getenv("OLLAMA_BASE_URL"),
+        base_url=os.getenv("OLLAMA_CLOUD_URL", "https://ollama.com/v1"),
         api_key=os.getenv("OLLAMA_API_KEY"),
         timeout=30.0,
     )
