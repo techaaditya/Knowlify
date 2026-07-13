@@ -13,8 +13,11 @@ import { KnowledgeDashboardPage } from './pages/KnowledgeDashboardPage';
 import { QuizPage } from './pages/QuizPage';
 import { FlashcardsPage } from './pages/FlashcardsPage';
 import { WorkspaceHeader } from './components/Workspace/WorkspaceHeader';
+import { CompanionDock } from './companion/CompanionDock';
+import { AICanvasPage } from './pages/AICanvasPage';
+import { useCanvasLaunchStore } from './components/AICanvas/canvasLaunchStore';
 
-type Tab = 'dashboard' | 'sources' | 'chat' | 'graph' | 'generate' | 'analytics';
+type Tab = 'dashboard' | 'sources' | 'chat' | 'graph' | 'generate' | 'analytics' | 'canvas';
 type GenerateMode = 'quiz' | 'flashcards';
 
 interface ChatActionPayload {
@@ -28,6 +31,7 @@ const NAV_ITEMS: { id: Tab; label: string }[] = [
   { id: 'sources', label: 'Sources' },
   { id: 'chat', label: 'Chat' },
   { id: 'graph', label: 'Knowledge Graph' },
+  { id: 'canvas', label: 'AI Canvas' },
   { id: 'generate', label: 'Generate' },
   { id: 'analytics', label: 'Analytics' },
 ];
@@ -95,6 +99,8 @@ export const App: React.FC = () => {
   const selectedSourceIds = useSourcesStore((s) => s.selectedSourceIds);
   const fetchSources = useSourcesStore((s) => s.fetchSources);
 
+  const canvasLaunchToken = useCanvasLaunchStore((s) => s.requestToken);
+
   useEffect(() => {
     fetchStudentData();
     refreshAll();
@@ -114,6 +120,13 @@ export const App: React.FC = () => {
     }
   }, [currentCourse, workspace?.id, selectedSourceIds, fetchGraphData]);
 
+  // A canvas launch (from the Knowledge Graph side panel, a wrong quiz
+  // answer, a recommendation) switches to the AI Canvas tab. Guarded so it
+  // never fires on mount — the store's token starts at 0.
+  useEffect(() => {
+    if (canvasLaunchToken > 0) setActiveTab('canvas');
+  }, [canvasLaunchToken]);
+
   const renderContent = () => {
     switch (activeTab) {
       case 'dashboard':
@@ -130,6 +143,8 @@ export const App: React.FC = () => {
         );
       case 'graph':
         return <KnowledgeMapPage />;
+      case 'canvas':
+        return <AICanvasPage />;
       case 'generate':
         return <GeneratePage initialMode={generateMode} onChatAction={handleChatAction} />;
       case 'analytics':
@@ -259,6 +274,9 @@ export const App: React.FC = () => {
         />
         {renderContent()}
       </main>
+
+      {/* AI Learning Companion — always present, lower-right */}
+      <CompanionDock />
     </div>
   );
 };
