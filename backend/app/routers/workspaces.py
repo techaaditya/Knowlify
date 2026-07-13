@@ -6,29 +6,43 @@ from sqlalchemy.orm import Session
 from ..database import get_db
 from ..models.workspace import Workspace
 from ..models.source import Source
+from ..models.user import User
 from ..schemas.workspace import (
     WorkspaceCreate,
     WorkspaceUpdate,
     WorkspaceResponse,
     WorkspaceDashboardResponse,
 )
-from ..services.source_service import get_or_create_default_workspace
+from ..services.auth_deps import get_current_user
+from ..services.source_service import ensure_user_workspaces, workspace_owned_by
 
 router = APIRouter(prefix="/api/workspaces", tags=["workspaces"])
 
 
+def _owned_or_404(db: Session, workspace_id: str, user: User) -> Workspace:
+    workspace = workspace_owned_by(db, workspace_id, str(user.id))
+    if not workspace:
+        raise HTTPException(status_code=404, detail="Workspace not found.")
+    return workspace
+
+
 @router.get("", response_model=list[WorkspaceResponse])
-def list_workspaces(db: Session = Depends(get_db)):
-    workspaces = db.query(Workspace).order_by(Workspace.updated_at.desc()).all()
-    if not workspaces:
-        ws = get_or_create_default_workspace(db)
-        return [WorkspaceResponse.model_validate(ws)]
+def list_workspaces(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    workspaces = ensure_user_workspaces(db, str(user.id))
     return [WorkspaceResponse.model_validate(w) for w in workspaces]
 
 
 @router.post("", response_model=WorkspaceResponse)
-def create_workspace(payload: WorkspaceCreate, db: Session = Depends(get_db)):
-    workspace = Workspace(name=payload.name, description=payload.description or "{}")
+def create_workspace(
+    payload: WorkspaceCreate,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    workspace = Workspace(
+        name=payload.name,
+        description=payload.description or "{}",
+        user_id=str(user.id),
+    )
     db.add(workspace)
     db.commit()
     db.refresh(workspace)
@@ -36,20 +50,23 @@ def create_workspace(payload: WorkspaceCreate, db: Session = Depends(get_db)):
 
 
 @router.get("/{workspace_id}", response_model=WorkspaceResponse)
-def get_workspace(workspace_id: str, db: Session = Depends(get_db)):
-    workspace = db.query(Workspace).filter(Workspace.id == workspace_id).first()
-    if not workspace:
-        raise HTTPException(status_code=404, detail="Workspace not found.")
+def get_workspace(
+    workspace_id: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    workspace = _owned_or_404(db, workspace_id, user)
     return WorkspaceResponse.model_validate(workspace)
 
 
 @router.patch("/{workspace_id}", response_model=WorkspaceResponse)
 def update_workspace(
-    workspace_id: str, payload: WorkspaceUpdate, db: Session = Depends(get_db)
+    workspace_id: str,
+    payload: WorkspaceUpdate,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
 ):
-    workspace = db.query(Workspace).filter(Workspace.id == workspace_id).first()
-    if not workspace:
-        raise HTTPException(status_code=404, detail="Workspace not found.")
+    workspace = _owned_or_404(db, workspace_id, user)
     if payload.name:
         workspace.name = payload.name
     if payload.description is not None:
@@ -60,10 +77,12 @@ def update_workspace(
 
 
 @router.get("/{workspace_id}/dashboard", response_model=WorkspaceDashboardResponse)
-def get_workspace_dashboard(workspace_id: str, db: Session = Depends(get_db)):
-    workspace = db.query(Workspace).filter(Workspace.id == workspace_id).first()
-    if not workspace:
-        raise HTTPException(status_code=404, detail="Workspace not found.")
+def get_workspace_dashboard(
+    workspace_id: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    workspace = _owned_or_404(db, workspace_id, user)
 
     recent_sources = (
         db.query(Source)
@@ -120,12 +139,11 @@ def get_workspace_graph(
     workspace_id: str,
     source_ids: str | None = None,
     db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
 ):
     from ..engines.ingestion.graph_integration import merge_workspace_graph
 
-    workspace = db.query(Workspace).filter(Workspace.id == workspace_id).first()
-    if not workspace:
-        raise HTTPException(status_code=404, detail="Workspace not found.")
+    workspace = _owned_or_404(db, workspace_id, user)
 
     if source_ids:
         ids = [s.strip() for s in source_ids.split(",") if s.strip()]

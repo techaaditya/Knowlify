@@ -2,7 +2,14 @@ from .workspace import Workspace
 from .source import Source, SourceChunk, ProcessingLog
 from .user import User
 from .document import Document, Concept, ConceptPrerequisite
-from .student_profile import TopicMastery, QuizAttempt, InteractionEvent, Flashcard, ChatMessageModel
+from .student_profile import (
+    TopicMastery,
+    QuizAttempt,
+    InteractionEvent,
+    Flashcard,
+    GeneratedQuestion,
+    ChatMessageModel,
+)
 
 __all__ = [
     "Workspace",
@@ -17,5 +24,6 @@ __all__ = [
     "QuizAttempt",
     "InteractionEvent",
     "Flashcard",
+    "GeneratedQuestion",
     "ChatMessageModel"
 ]

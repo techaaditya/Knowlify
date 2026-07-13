@@ -12,6 +12,9 @@ from ..services.workspace_graph import graph_has_data, load_workspace_graph
 from ..services.student_workspace_data import filter_profile_for_workspace
 from ..services.source_grounding import workspace_source_summary
 from ..services.spaced_repetition import due_flashcard_reviews
+from ..services.auth_deps import effective_student_id, get_optional_user
+from ..services.source_service import workspace_owned_by
+from ..models.user import User
 from ..models.workspace import Workspace
 
 router = APIRouter(prefix="/api/dashboard", tags=["dashboard"])
@@ -53,12 +56,20 @@ def choose_recommendation_concept(student_profile: dict, graph_data: dict) -> st
     return None
 
 
-def load_all_workspace_graphs(db: Session) -> dict:
-    """Merge every real workspace graph for the learner's overall analysis."""
+def load_all_workspace_graphs(db: Session, user_id: str | None = None) -> dict:
+    """Merge the learner's workspace graphs for overall analysis.
+
+    Scoped to the user's own workspaces when a user id is provided so one
+    learner's overall view never mixes in another's knowledge graphs.
+    """
     from ..engines.ingestion.graph_integration import merge_workspace_graph
 
+    query = db.query(Workspace)
+    if user_id is not None:
+        query = query.filter(Workspace.user_id == user_id)
+
     merged = None
-    for workspace in db.query(Workspace).all():
+    for workspace in query.all():
         graph = load_workspace_graph(db, workspace.id)
         if graph_has_data(graph):
             merged = merge_workspace_graph(merged, graph)
@@ -71,8 +82,13 @@ async def get_student_dashboard(
     workspace_id: str | None = Query(default=None, description="Workspace for focused analysis."),
     scope: str = Query(default="workspace", pattern="^(workspace|overall)$"),
     app_db: Session = Depends(get_db),
+    current_user: User | None = Depends(get_optional_user),
 ):
     try:
+        # The authenticated user is the source of truth for identity.
+        student_id = effective_student_id(current_user, student_id)
+        user_id = str(current_user.id) if current_user else None
+
         cognitive_engine = StudentModelingEngine(data_file=DATA_FILE)
         student_profile = (
             cognitive_engine.get_student(student_id)
@@ -82,14 +98,19 @@ async def get_student_dashboard(
         if scope == "workspace":
             if not workspace_id:
                 raise HTTPException(status_code=422, detail="workspace_id is required for workspace analysis.")
+            if user_id and not workspace_owned_by(app_db, workspace_id, user_id):
+                raise HTTPException(status_code=404, detail="Workspace not found.")
             context_graph = load_workspace_graph(app_db, workspace_id)
             student_profile = filter_profile_for_workspace(student_profile, workspace_id, context_graph)
             source_summary = workspace_source_summary(app_db, workspace_id)
             due_reviews = due_flashcard_reviews(student_id, workspace_id)
         else:
-            context_graph = load_all_workspace_graphs(app_db)
+            context_graph = load_all_workspace_graphs(app_db, user_id)
+            workspace_query = app_db.query(Workspace)
+            if user_id:
+                workspace_query = workspace_query.filter(Workspace.user_id == user_id)
             source_summary = {
-                "workspace_count": app_db.query(Workspace).count(),
+                "workspace_count": workspace_query.count(),
                 "mode": "overall",
             }
             due_reviews = due_flashcard_reviews(student_id)

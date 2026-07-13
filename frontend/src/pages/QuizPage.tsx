@@ -218,8 +218,8 @@ export const QuizPage: React.FC<QuizPageProps> = ({ embedded = false, onLearnMor
               </select>
             </div>
           </div>
-          <div className="flex flex-wrap gap-3 items-center justify-between mt-4">
-            <p className="text-xs text-theme-muted">Current mastery: {mastery}%. Hard questions have more impact on mastery than easy questions.</p>
+          <div className="flex flex-wrap gap-4 items-center justify-between mt-6">
+            <p className="text-sm font-medium text-theme-secondary leading-relaxed">Current mastery: <strong className="text-theme-text">{mastery}%</strong>. Hard questions have more impact on mastery than easy questions.</p>
             <button type="button" className="btn btn-primary" onClick={createQuiz} disabled={loading}>{loading ? 'Creating Quiz...' : 'Create Concept Quiz'}</button>
           </div>
           {error && <p className="text-xs text-mastery-weak-text mt-3">{error}</p>}

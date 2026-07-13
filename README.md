@@ -111,7 +111,7 @@ Choose the setup instructions corresponding to the shell you are using:
    ```
 2. Activate the pre-configured virtual environment:
    ```bash
-   source venv/Scripts/activate
+   source venv/bin/activate
    ```
 3. Run the FastAPI development server:
    ```bash
@@ -259,6 +259,46 @@ If you see `on sqlite` instead, double-check that `psycopg2-binary` is installed
 | **POST** | `/api/attempt` | Submit a practice attempt to calculate BKT mastery updates. |
 | **POST** | `/api/extract` | Run the PDF extraction pipeline to generate and cache new graphs. |
 | **POST** | `/api/chat` | Send a prompt to the Socratic tutoring model. |
+
+### Authentication
+
+Stateless JWT sessions (bearer token in the `Authorization` header). Passwords
+are hashed with PBKDF2-SHA256 and tokens signed with HS256 — both use only the
+Python standard library, so no extra dependencies are required.
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| **POST** | `/api/auth/signup` | Create an account (full name, email, password ≥ 8 chars). Returns a session token. |
+| **POST** | `/api/auth/login` | Email + password sign-in. |
+| **POST** | `/api/auth/google` | Verify a Google ID token, then log in or auto-create the account. |
+| **GET** | `/api/auth/me` | Return the current user for the bearer token. |
+| **POST** | `/api/auth/forgot-password` | Issue a single-use, 1-hour password reset token (dev returns it in the response). |
+| **POST** | `/api/auth/reset-password` | Set a new password from a reset token and sign in. |
+| **POST** | `/api/auth/logout` | No-op for stateless JWT (client discards the token). |
+| **GET** | `/api/chat/history` | Load the signed-in user's saved chat turns for a workspace. |
+| **DELETE** | `/api/chat/history` | Clear the signed-in user's chat history for a workspace. |
+
+**Per-user data isolation** — every workspace is owned by a user (`workspaces.user_id`),
+and all source, graph, chat, quiz, flashcard, and mastery data is scoped to the
+authenticated user derived from the bearer token. New users start with a fresh empty
+workspace; the first user to sign in adopts any pre-auth (unowned) workspaces so
+existing uploads aren't lost. Chat history, generated quizzes, and generated flashcards
+are persisted per user and survive restarts.
+
+**Configuration** — add to `backend/.env` (see `.env.example`):
+
+```env
+JWT_SECRET=            # generate: python -c "import secrets; print(secrets.token_hex(32))"
+GOOGLE_CLIENT_ID=      # OAuth Web client id (optional — enables Google sign-in)
+FRONTEND_URL=http://localhost:5173
+```
+
+For the frontend, set `VITE_GOOGLE_CLIENT_ID` in `frontend/.env.local` to the
+**same** client id to enable the "Continue with Google" button.
+
+The React app gates all existing pages behind auth: unauthenticated visitors see
+the Login / Sign Up / Forgot Password / Reset Password screens, and the session
+persists across reloads. Sign out from the account panel at the bottom of the sidebar.
 
 ---
 
