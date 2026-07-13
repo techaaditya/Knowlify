@@ -11,8 +11,15 @@ from ..database import get_db
 from ..engines.adaptive import adaptive_engine
 from ..engines.adaptive.database import SessionLocal
 from ..engines.cognitive.student_model import StudentModelingEngine
+from ..engines.generative.hint_generator import generate_progressive_hints
 from ..engines.generative.learning_materials import generate_flashcards, generate_quiz_questions
-from ..schemas.quiz import FlashcardReviewCreate, GeneratedQuizAnswer, QuizAttemptCreate, QuizGenerateRequest
+from ..schemas.quiz import (
+    FlashcardReviewCreate,
+    GeneratedQuizAnswer,
+    GeneratedQuizHintRequest,
+    QuizAttemptCreate,
+    QuizGenerateRequest,
+)
 from ..services.source_grounding import source_context_for_concept
 from ..services.spaced_repetition import due_flashcard_reviews, record_flashcard_review
 from ..services.workspace_graph import graph_has_data, load_workspace_graph
@@ -180,6 +187,38 @@ async def answer_generated_quiz(
         "explanation": f"{question['explanation']} {evaluation_note}",
         "evidence": question.get("evidence"),
         "source_name": question.get("source_name"),
+    }
+
+
+@router.post("/quiz/hint")
+async def get_generated_quiz_hint(
+    payload: GeneratedQuizHintRequest,
+    app_db: Session = Depends(get_db),
+):
+    """Return the next progressive hint for a generated quiz question."""
+    question = GENERATED_QUESTIONS.get(payload.question_id)
+    if not question:
+        raise HTTPException(status_code=404, detail="Generated question expired. Generate a new quiz.")
+
+    graph_data = load_workspace_graph(app_db, payload.workspace_id)
+    concept = next(
+        (node for node in graph_data.get("nodes", []) if node.get("id") == question.get("concept_id")),
+        None,
+    )
+    concept_name = (concept or {}).get("display_name") or question.get("concept_id")
+    hints = generate_progressive_hints(
+        question,
+        concept_name=concept_name,
+        student_answer=payload.student_answer,
+    )
+    selected_hint = hints[payload.hint_level - 1]
+
+    return {
+        "question_id": payload.question_id,
+        "hint_level": payload.hint_level,
+        "max_hint_level": len(hints),
+        "hint": selected_hint,
+        "hints_used": payload.hint_level,
     }
 
 

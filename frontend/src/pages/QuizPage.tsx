@@ -1,5 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { answerGeneratedQuiz, generateWorkspaceQuiz, GeneratedQuizQuestion } from '../api/client';
+import {
+  answerGeneratedQuiz,
+  generateWorkspaceQuiz,
+  GeneratedQuizHint,
+  GeneratedQuizQuestion,
+  getGeneratedQuizHint,
+} from '../api/client';
 import { SelectedSourcesBar } from '../components/Sources/SelectedSourcesBar';
 import { useSourcesStore } from '../store/sourcesStore';
 import { useStudyStore } from '../store/studyStore';
@@ -45,6 +51,8 @@ export const QuizPage: React.FC<QuizPageProps> = ({ embedded = false, onLearnMor
   const [score, setScore] = useState(0);
   const [complete, setComplete] = useState(false);
   const [hintsUsed, setHintsUsed] = useState(0);
+  const [visibleHints, setVisibleHints] = useState<GeneratedQuizHint[]>([]);
+  const [hintLoading, setHintLoading] = useState(false);
   const [startedAt, setStartedAt] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -74,6 +82,7 @@ export const QuizPage: React.FC<QuizPageProps> = ({ embedded = false, onLearnMor
       setFeedback(null);
       setReviewItems([]);
       setHintsUsed(0);
+      setVisibleHints([]);
       setStartedAt(Date.now());
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Could not create a quiz for this concept.');
@@ -94,7 +103,7 @@ export const QuizPage: React.FC<QuizPageProps> = ({ embedded = false, onLearnMor
         question_id: question.id,
         selected_option: question.question_type === 'multiple_choice' ? selectedOption : null,
         answer_text: question.question_type === 'short_answer' ? answerText : undefined,
-        hints_used: hintsUsed,
+        hints_used: visibleHints.length || hintsUsed,
         time_taken: Math.max(1, Math.round((Date.now() - (startedAt || Date.now())) / 1000)),
         difficulty,
       });
@@ -124,7 +133,7 @@ export const QuizPage: React.FC<QuizPageProps> = ({ embedded = false, onLearnMor
 
   const continueQuiz = () => {
     if (index + 1 === questions.length) { setComplete(true); setFeedback(null); return; }
-    setIndex((value) => value + 1); setSelectedOption(null); setAnswerText(''); setFeedback(null); setHintsUsed(0); setStartedAt(Date.now());
+    setIndex((value) => value + 1); setSelectedOption(null); setAnswerText(''); setFeedback(null); setHintsUsed(0); setVisibleHints([]); setStartedAt(Date.now());
   };
 
   const currentReviewItem = question
@@ -149,6 +158,27 @@ export const QuizPage: React.FC<QuizPageProps> = ({ embedded = false, onLearnMor
     ].join('\n');
 
     onLearnMore?.(item.question.concept_id, 'explain', prompt);
+  };
+
+  const requestHint = async () => {
+    if (!workspace?.id || !question || feedback || visibleHints.length >= 3) return;
+    setHintLoading(true);
+    setError(null);
+    try {
+      const nextLevel = visibleHints.length + 1;
+      const data = await getGeneratedQuizHint({
+        workspace_id: workspace.id,
+        question_id: question.id,
+        hint_level: nextLevel,
+        student_answer: question.question_type === 'short_answer' ? answerText : null,
+      });
+      setVisibleHints((items) => [...items, data.hint]);
+      setHintsUsed(data.hints_used);
+    } catch (err: any) {
+      setError(err.response?.data?.detail || 'Could not load a hint for this question.');
+    } finally {
+      setHintLoading(false);
+    }
   };
 
   return (
@@ -258,6 +288,16 @@ export const QuizPage: React.FC<QuizPageProps> = ({ embedded = false, onLearnMor
               </div>
               {question.source_name && <span className="badge">Grounded in {question.source_name}</span>}
               <p className="font-semibold text-theme-text text-base">{question.prompt}</p>
+              {visibleHints.length > 0 && (
+                <div className="space-y-2">
+                  {visibleHints.map((hint) => (
+                    <div key={`${question.id}-${hint.level}`} className="recommendation-box">
+                      <span className="badge">{hint.title}</span>
+                      <p className="text-sm mt-2">{hint.text}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
               {question.question_type === 'multiple_choice' ? (
                 <div className="space-y-2">
                   {question.options.map((option, optionIndex) => (
@@ -277,9 +317,16 @@ export const QuizPage: React.FC<QuizPageProps> = ({ embedded = false, onLearnMor
               )}
               {!feedback ? (
                 <div className="flex flex-wrap gap-3 items-end">
-                  <div className="form-group mb-0 w-32">
-                    <label htmlFor="quiz-hints">Hints Used</label>
-                    <input id="quiz-hints" className="form-control" type="number" min="0" max="5" value={hintsUsed} onChange={(event) => setHintsUsed(Number(event.target.value))} />
+                  <div className="space-y-1">
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      disabled={hintLoading || visibleHints.length >= 3}
+                      onClick={requestHint}
+                    >
+                      {hintLoading ? 'Loading Hint...' : visibleHints.length >= 3 ? 'All Hints Shown' : `Get Hint ${visibleHints.length + 1}`}
+                    </button>
+                    <p className="text-xs text-theme-muted">{visibleHints.length} of 3 hints used. More hints reduce mastery gain slightly.</p>
                   </div>
                   <button
                     type="button"

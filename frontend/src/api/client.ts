@@ -145,6 +145,13 @@ export interface GeneratedQuizQuestion {
   source_name?: string | null;
 }
 
+export interface GeneratedQuizHint {
+  level: number;
+  reveals: string;
+  title: string;
+  text: string;
+}
+
 export interface GeneratedFlashcard {
   id: string;
   front: string;
@@ -165,6 +172,22 @@ export const generateWorkspaceQuiz = async (
     question_mode: questionMode,
     difficulty,
   });
+  return response.data;
+};
+
+export const getGeneratedQuizHint = async (payload: {
+  workspace_id: string;
+  question_id: string;
+  hint_level: number;
+  student_answer?: string | null;
+}) => {
+  const response = await client.post<{
+    question_id: string;
+    hint_level: number;
+    max_hint_level: number;
+    hint: GeneratedQuizHint;
+    hints_used: number;
+  }>('/api/quiz/hint', payload);
   return response.data;
 };
 
