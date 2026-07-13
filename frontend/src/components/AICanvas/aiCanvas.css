@@ -348,6 +348,22 @@
 .ai-canvas-chart { width: 100%; max-width: 600px; }
 .ai-canvas-chart svg { display: block; width: 100%; height: auto; }
 
+/* ── Function plot renderer ───────────────────────────────────── */
+.ai-canvas-plot { width: 100%; max-width: 640px; }
+.ai-canvas-plot svg { display: block; width: 100%; height: auto; }
+.ai-canvas-plot-legend {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.35rem 1rem;
+    margin-top: 0.5rem;
+    font-size: 0.82rem;
+    color: #6b6558;
+}
+.ai-canvas-plot-legend-item { display: inline-flex; align-items: center; gap: 0.4rem; }
+.ai-canvas-plot-swatch { width: 14px; height: 3px; border-radius: 2px; display: inline-block; }
+.ai-canvas-plot-error { color: #8A8073; font-size: 0.9rem; text-align: center; padding: 2rem 1rem; }
+
 /* ── Presentation mode ─────────────────────────────────────── */
 .ai-canvas-shell.presenting .ai-canvas-toolbar,
 .ai-canvas-shell.presenting .ai-canvas-composer,

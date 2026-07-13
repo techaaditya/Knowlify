@@ -7,7 +7,7 @@
  * renderer picked for `visualization` always matches what the step carries.
  */
 
-export type CanvasVisualization = 'graph' | 'equation' | 'comparison' | 'timeline' | 'chart';
+export type CanvasVisualization = 'graph' | 'equation' | 'comparison' | 'timeline' | 'chart' | 'plot';
 
 export interface CanvasGraphNode {
   id: string;
@@ -62,6 +62,36 @@ export interface CanvasChartPayload {
   points: Array<{ label: string; value: number; highlight?: boolean }>;
 }
 
+/**
+ * A true function plot on a Cartesian grid (like Desmos) — the right tool for
+ * "graph y = mx + c", parabolas, trig, growth curves, etc. Each function is an
+ * expression in terms of `x` that the renderer evaluates itself, so the curve
+ * is smooth and correct regardless of the model's own arithmetic.
+ */
+export interface CanvasPlotFunction {
+  /** Right-hand side in terms of x, e.g. "-x + 1", "x^2", "2*sin(x)". */
+  expr: string;
+  /** Human label shown in the legend, e.g. "y = -x + 1". */
+  label?: string;
+  highlight?: boolean;
+}
+
+export interface CanvasPlotPoint {
+  x: number;
+  y: number;
+  label?: string;
+}
+
+export interface CanvasPlotPayload {
+  functions: CanvasPlotFunction[];
+  /** Visible x-domain; defaults to a sensible range around the origin. */
+  xRange?: [number, number];
+  /** Visible y-range; auto-fit to the sampled curve when omitted. */
+  yRange?: [number, number];
+  /** Optional highlighted points to mark (intercepts, vertices, …). */
+  points?: CanvasPlotPoint[];
+}
+
 export interface CanvasStep {
   narration: string;
   graph?: CanvasGraphPayload;
@@ -69,6 +99,7 @@ export interface CanvasStep {
   comparison?: CanvasComparisonPayload;
   timeline?: CanvasTimelinePayload;
   chart?: CanvasChartPayload;
+  plot?: CanvasPlotPayload;
 }
 
 export interface CanvasScene {

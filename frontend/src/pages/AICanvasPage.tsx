@@ -22,6 +22,7 @@ const TYPE_HINT: Record<Exclude<PaletteChoice, 'auto'>, string> = {
   graph: ' (Use a graph/flowchart visualization.)',
   tree: ' (Use a tree-layout graph visualization.)',
   equation: ' (Use an equation visualization.)',
+  plot: ' (Plot this as a function on a Cartesian grid.)',
   chart: ' (Use a bar/line chart visualization.)',
   comparison: ' (Use a comparison table visualization.)',
   timeline: ' (Use a timeline visualization.)',
