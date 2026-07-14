@@ -1,7 +1,19 @@
 import React from 'react';
-import { Sparkles, Share2, GitBranch, Sigma, BarChart3, LineChart, Table2, ListOrdered, type LucideIcon } from 'lucide-react';
+import {
+  Sparkles,
+  LineChart,
+  Brain,
+  LayoutTemplate,
+  Clapperboard,
+  type LucideIcon,
+} from 'lucide-react';
 
-export type PaletteChoice = 'auto' | 'graph' | 'tree' | 'equation' | 'plot' | 'chart' | 'comparison' | 'timeline';
+export type PaletteChoice =
+  | 'auto'
+  | 'plot'
+  | 'mindmap'
+  | 'infographic'
+  | 'video';
 
 interface Props {
   value: PaletteChoice;
@@ -9,21 +21,19 @@ interface Props {
 }
 
 const OPTIONS: Array<{ id: PaletteChoice; label: string; Icon: LucideIcon }> = [
-  { id: 'auto', label: 'Auto', Icon: Sparkles },
-  { id: 'graph', label: 'Graph', Icon: Share2 },
-  { id: 'tree', label: 'Tree', Icon: GitBranch },
-  { id: 'equation', label: 'Equation', Icon: Sigma },
-  { id: 'plot', label: 'Plot', Icon: LineChart },
-  { id: 'chart', label: 'Chart', Icon: BarChart3 },
-  { id: 'comparison', label: 'Compare', Icon: Table2 },
-  { id: 'timeline', label: 'Timeline', Icon: ListOrdered },
+  { id: 'auto', label: 'Auto — let the AI decide', Icon: Sparkles },
+  { id: 'plot', label: 'Diagram / chart / plot', Icon: LineChart },
+  { id: 'mindmap', label: 'Mind map', Icon: Brain },
+  { id: 'infographic', label: 'Infographic', Icon: LayoutTemplate },
+  { id: 'video', label: 'Video lesson', Icon: Clapperboard },
 ];
 
 /**
- * Floating tool palette — the AI picks the visualization type by default
- * ("Auto"), but a student/teacher can force one when they know exactly what
- * shape they want (e.g. force "Tree" for a binary tree that the model
- * mis-classified as a general graph).
+ * Floating tool palette. "Auto" is the default — you just describe what you
+ * want and the AI picks the best visualization. The other buttons force a
+ * specific format: one combined diagram/chart/plot option, plus the three
+ * richer formats (mind map, infographic, video) that benefit from a focused
+ * prompt.
  */
 export const CanvasTypePalette: React.FC<Props> = ({ value, onChange }) => (
   <div className="ai-canvas-type-palette" role="radiogroup" aria-label="Visualization type">
@@ -36,8 +46,9 @@ export const CanvasTypePalette: React.FC<Props> = ({ value, onChange }) => (
         className={`ai-canvas-type-btn ${value === id ? 'active' : ''}`}
         onClick={() => onChange(id)}
         title={label}
+        aria-label={label}
       >
-        <Icon size={14} />
+        <Icon size={15} />
       </button>
     ))}
   </div>
