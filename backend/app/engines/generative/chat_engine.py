@@ -97,9 +97,88 @@ MODE_INSTRUCTIONS = {
         "type (omit the others). For \"plot\", write expr in terms of x using ^ for powers and "
         "functions like sin, cos, sqrt, exp, ln (e.g. \"x^2\", \"2*sin(x)\", \"exp(x)\"); pick an "
         "xRange that shows the interesting behaviour. Keep labels and narration short, concrete, "
-        "and student-friendly — this is being drawn live on a whiteboard, not read as an essay."
+        "and student-friendly — this is being drawn live on a whiteboard, not read as an essay.\n\n"
+        "You may ALSO choose one of these richer types when the request explicitly calls for it:\n"
+        "- \"mindmap\": a central idea with branching sub-topics (asked for a mind map / brainstorm / overview).\n"
+        "- \"infographic\": a single study poster of stats, facts and steps (asked for an infographic / summary poster / cheat sheet).\n"
+        "- \"video\": a short animated lesson (asked for a video / animation).\n"
+        "Use the same {title, visualization, steps:[...]} envelope; the step key matches the type name."
     ),
 }
+
+
+# ---------------------------------------------------------------------------
+# Focused per-type canvas guides. When the client sends an explicit
+# `canvas_type` (from the tool palette), we emit ONLY that type's schema — a
+# smaller, sharper prompt the model follows far more reliably than the
+# all-types blob above.
+# ---------------------------------------------------------------------------
+
+CANVAS_TYPE_GUIDES: dict[str, str] = {
+    "mindmap": (
+        'Visualization type: "mindmap" — a central idea with branching sub-topics.\n'
+        "Model it as a FLAT list of nodes where every node names its parent by id "
+        '("parentId": null for a top-level branch). Aim for 8-16 nodes across 2-3 levels.\n'
+        "Reveal it progressively over 3-5 steps; each step adds another branch and carries "
+        "the COMPLETE set of nodes shown so far (not a diff).\n"
+        "JSON shape:\n"
+        "{\n"
+        '  "title": "short title",\n'
+        '  "visualization": "mindmap",\n'
+        '  "steps": [\n'
+        '    {"narration": "one sentence", "mindmap": {"root": "Central Idea", "nodes": ['
+        '{"id": "b1", "label": "Branch A", "parentId": null, "note": "one-line detail"}, '
+        '{"id": "b1a", "label": "Sub-point", "parentId": "b1"}]}}\n'
+        "  ]\n"
+        "}"
+    ),
+    "infographic": (
+        'Visualization type: "infographic" — ONE polished study poster (not multi-step). '
+        "Return exactly ONE step. Compose 4-7 blocks; each block is one of:\n"
+        '- {"kind": "stat", "value": "70%", "label": "what it measures", "trend": "optional note", "icon": "optional lucide icon name"}\n'
+        '- {"kind": "facts", "heading": "Key facts", "items": [{"icon": "check", "text": "..."}]}\n'
+        '- {"kind": "process", "heading": "How it works", "steps": ["step 1", "step 2", "step 3"]}\n'
+        '- {"kind": "compare", "heading": "Do vs Avoid", "left": {"title": "Do", "items": ["..."]}, "right": {"title": "Avoid", "items": ["..."]}}\n'
+        '- {"kind": "quote", "text": "a memorable line", "source": "optional"}\n'
+        '- {"kind": "formula", "latex": "E = mc^2", "caption": "optional"}\n'
+        'Choose a theme: "warm" (default), "cool", or "mono". Use short, punchy text.\n'
+        "JSON shape:\n"
+        '{"title": "...", "visualization": "infographic", "steps": [{"narration": "one-line summary", '
+        '"infographic": {"theme": "warm", "title": "Poster Title", "subtitle": "optional", "blocks": [ ... ]}}]}'
+    ),
+    "video": (
+        'Visualization type: "video" — a short animated lesson drawn on a canvas and played like a video. '
+        'Return exactly ONE step containing a "video" payload.\n'
+        "Coordinates x, y and sizes are PERCENT of the canvas (0-100). Times (\"at\") are in seconds; "
+        "duration <= 45. Provide 4-8 elements; each has keyframes the renderer interpolates smoothly.\n"
+        'Element kinds: "text" (props.text), "latex" (props.latex, a formula), "circle" (props.radius), '
+        '"rect" (props.width, props.height), "line"/"arrow" (props.x2, props.y2 = endpoint), '
+        '"plot" (props.expr = a function of x). Optional props: color, fontSize.\n'
+        'Include "captions": [{"at": 0, "end": 4, "text": "spoken line"}] covering the whole duration — '
+        "they are read aloud and shown as subtitles, so write them as a clear spoken script.\n"
+        "JSON shape:\n"
+        '{"title": "...", "visualization": "video", "steps": [{"narration": "one-line summary", "video": {'
+        '"duration": 20, "background": "#FFFFFF", "elements": [{"id": "t1", "kind": "text", '
+        '"props": {"text": "Pythagoras", "color": "#3B3833", "fontSize": 34}, "keyframes": ['
+        '{"at": 0, "x": 50, "y": 20, "opacity": 0}, {"at": 1, "x": 50, "y": 20, "opacity": 1}]}], '
+        '"captions": [{"at": 0, "end": 4, "text": "Let\'s explore the Pythagorean theorem."}]}}]}'
+    ),
+}
+
+
+def build_canvas_instruction(canvas_type: Optional[str]) -> str:
+    """Return the canvas system instruction, focused on one type if requested."""
+    guide = CANVAS_TYPE_GUIDES.get((canvas_type or "").strip()) if canvas_type else None
+    if not guide:
+        return MODE_INSTRUCTIONS["canvas"]
+    return (
+        "You are building a visual explanation for the AI Canvas whiteboard. "
+        "Respond with ONLY a single valid JSON object — no prose, no markdown code fences, "
+        "no commentary before or after it.\n\n"
+        f"{guide}\n\n"
+        "Only include the ONE payload key that matches the visualization type inside each step. "
+        "Keep labels and narration short, concrete and student-friendly."
+    )
 
 
 def _get_chat_client() -> OpenAI:
@@ -320,9 +399,13 @@ def build_system_prompt(
     graph_context: str,
     student_context: str,
     concept_name: str | None,
+    canvas_type: Optional[str] = None,
 ) -> str:
     """Assemble the full system prompt for the LLM."""
-    mode_instruction = MODE_INSTRUCTIONS.get(mode, MODE_INSTRUCTIONS["explain"])
+    if mode == "canvas":
+        mode_instruction = build_canvas_instruction(canvas_type)
+    else:
+        mode_instruction = MODE_INSTRUCTIONS.get(mode, MODE_INSTRUCTIONS["explain"])
     concept_label = concept_name or "the student's workspace topics"
 
     prompt = f"""You are Knowlify Tutor, a warm, interactive learning coach. You help students learn concepts from their uploaded knowledge sources.
@@ -369,10 +452,11 @@ def generate_chat_response(
     graph_context: str = "",
     student_context: str = "",
     concept_name: str | None = None,
+    canvas_type: Optional[str] = None,
 ) -> str:
     """Send the conversation to the LLM and return the response."""
     system_prompt = build_system_prompt(
-        mode, source_context, graph_context, student_context, concept_name
+        mode, source_context, graph_context, student_context, concept_name, canvas_type
     )
 
     messages = [{"role": "system", "content": system_prompt}]
@@ -394,16 +478,20 @@ def generate_chat_response(
     # mode makes even smaller local models emit syntactically valid JSON
     # (no prose, no markdown fences), which the scene parser then renders.
     extra_kwargs: dict = {}
+    max_tokens = 1500
     if mode == "canvas":
         extra_kwargs["response_format"] = {"type": "json_object"}
+        # Multi-step scenes (and especially keyframed video timelines) blow past
+        # the 1500-token default and get truncated into invalid JSON.
+        max_tokens = 6000 if canvas_type == "video" else 4000
 
     for model_name in _chat_model_candidates():
         try:
             response = client.chat.completions.create(
                 model=model_name,
                 messages=messages,
-                temperature=0.55,
-                max_tokens=1500,
+                temperature=0.4,
+                max_tokens=max_tokens,
                 **extra_kwargs,
             )
             return response.choices[0].message.content or "I'm sorry, I couldn't generate a response."

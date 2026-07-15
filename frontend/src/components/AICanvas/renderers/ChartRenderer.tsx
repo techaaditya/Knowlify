@@ -4,6 +4,8 @@ import type { CanvasChartPayload } from '../canvasTypes';
 
 interface Props {
   payload: CanvasChartPayload;
+  selectedIndex?: number | null;
+  onSelect?: (index: number) => void;
 }
 
 const WIDTH = 560;
@@ -18,8 +20,10 @@ const PAD_R = 16;
  * style visualizations don't need a full charting library; a plain SVG keeps
  * the bundle small and the styling consistent with the rest of the canvas.
  */
-export const ChartRenderer: React.FC<Props> = ({ payload }) => {
+export const ChartRenderer: React.FC<Props> = ({ payload, selectedIndex, onSelect }) => {
   const { points, kind, unit } = payload;
+  const clickProps = (i: number) =>
+    onSelect ? { onClick: () => onSelect(i), style: { cursor: 'pointer' } } : {};
 
   const { plotW, plotH, xForIndex, yForValue } = useMemo(() => {
     const maxVal = Math.max(1, ...points.map((p) => p.value));
@@ -59,8 +63,9 @@ export const ChartRenderer: React.FC<Props> = ({ payload }) => {
             const barW = barSlot * 0.55;
             const x = xForIndex(i) - barW / 2;
             const y = yForValue(p.value);
+            const selected = selectedIndex === i;
             return (
-              <g key={i}>
+              <g key={i} {...clickProps(i)}>
                 <motion.rect
                   x={x}
                   width={barW}
@@ -68,6 +73,8 @@ export const ChartRenderer: React.FC<Props> = ({ payload }) => {
                   height={0}
                   rx={6}
                   fill={p.highlight ? '#BCA88A' : 'rgba(188,168,138,0.45)'}
+                  stroke={selected ? '#8A6D3B' : 'none'}
+                  strokeWidth={selected ? 2.5 : 0}
                   animate={{ y, height: PAD_T + plotH - y }}
                   transition={{ duration: 0.5, ease: 'easeOut', delay: i * 0.05 }}
                 />
@@ -96,14 +103,14 @@ export const ChartRenderer: React.FC<Props> = ({ payload }) => {
               transition={{ duration: 0.7, ease: 'easeOut' }}
             />
             {points.map((p, i) => (
-              <g key={i}>
+              <g key={i} {...clickProps(i)}>
                 <circle
                   cx={xForIndex(i)}
                   cy={yForValue(p.value)}
-                  r={p.highlight ? 6 : 4}
+                  r={selectedIndex === i ? 7 : p.highlight ? 6 : 4}
                   fill={p.highlight ? '#BCA88A' : '#FFFFFF'}
-                  stroke="#BCA88A"
-                  strokeWidth={2}
+                  stroke={selectedIndex === i ? '#8A6D3B' : '#BCA88A'}
+                  strokeWidth={selectedIndex === i ? 3 : 2}
                 />
                 <text x={xForIndex(i)} y={yForValue(p.value) - 12} textAnchor="middle" fontSize="12" fontWeight={700} fill="#3B3833">
                   {p.value}

@@ -15,7 +15,7 @@ export interface GraphEdge {
   to: string;
 }
 
-interface GraphData {
+export interface GraphData {
   nodes: GraphNode[];
   edges: GraphEdge[];
 }
