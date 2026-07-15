@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { BookOpen, ClipboardCheck, FileText, History, Layers3, X } from 'lucide-react';
 import {
   GeneratedArtifact,
@@ -6,6 +6,8 @@ import {
   getGenerationHistory,
 } from '../api/client';
 import { SelectedSourcesBar } from '../components/Sources/SelectedSourcesBar';
+import { ConceptPicker } from '../components/shared/ConceptPicker';
+import { useAutoGenerate } from '../components/shared/useAutoGenerate';
 import { useSourcesStore } from '../store/sourcesStore';
 import { useStudyStore } from '../store/studyStore';
 import { useWorkspaceStore } from '../store/workspaceStore';
@@ -37,7 +39,6 @@ const WrittenMaterial: React.FC<{
   const [artifact, setArtifact] = useState<GeneratedArtifact | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const consumedAutoGenerateKey = useRef<number | null>(null);
 
   useEffect(() => {
     if (graphData?.nodes.length) setTopic(selectedNodeId || graphData.nodes[0].id);
@@ -58,18 +59,18 @@ const WrittenMaterial: React.FC<{
     }
   };
 
-  useEffect(() => {
-    if (!autoGenerateKey || consumedAutoGenerateKey.current === autoGenerateKey) return;
-    if (!workspace?.id || !topic || loading) return;
-    if (autoConceptId && autoConceptId !== topic) {
-      setTopic(autoConceptId);
-      setSelectedNodeId(autoConceptId);
-      return;
-    }
-    consumedAutoGenerateKey.current = autoGenerateKey;
-    onAutoGenerateConsumed?.();
-    generate();
-  }, [autoGenerateKey, autoConceptId, topic, workspace?.id, loading]);
+  useAutoGenerate({
+    autoGenerateKey,
+    autoConceptId,
+    topic,
+    setTopic: (conceptId) => {
+      setTopic(conceptId);
+      setSelectedNodeId(conceptId);
+    },
+    ready: Boolean(workspace?.id && topic && !loading),
+    onConsumed: onAutoGenerateConsumed,
+    run: generate,
+  });
 
   if (!selectedSources.length) return <div className="card p-8 text-center text-theme-muted text-sm">Select processed sources first.</div>;
   if (!graphData?.nodes.length) return <div className="card p-8 text-center text-theme-muted text-sm">The selected sources do not have a knowledge graph yet.</div>;
@@ -81,9 +82,12 @@ const WrittenMaterial: React.FC<{
       <div className="card p-5 generate-material-controls">
         <div className="form-group mb-0">
           <label htmlFor={`${type}-topic`}>Concept</label>
-          <select id={`${type}-topic`} className="form-control" value={topic} onChange={(event) => { setTopic(event.target.value); setSelectedNodeId(event.target.value); setArtifact(null); }}>
-            {graphData.nodes.map((node) => <option key={node.id} value={node.id}>{node.display_name}</option>)}
-          </select>
+          <ConceptPicker
+            id={`${type}-topic`}
+            className="form-control"
+            value={topic}
+            onChange={(conceptId) => { setTopic(conceptId); setArtifact(null); }}
+          />
         </div>
         <button type="button" className="btn btn-primary" onClick={generate} disabled={loading}>
           {loading ? 'Generating...' : `Generate ${type === 'notes' ? 'Notes' : 'Study Guide'}`}
@@ -151,8 +155,8 @@ export const GeneratePage: React.FC<{
     <div className="space-y-6">
       <div className="dashboard-header generate-header">
         <div className="header-title">
-          <h2>Generate</h2>
-          <p>Create and revisit source-grounded learning materials from this folder.</p>
+          <h2>Study Tools</h2>
+          <p>Create and revisit source-grounded learning materials from this workspace.</p>
         </div>
         <button type="button" className="btn btn-secondary" onClick={() => setHistoryOpen((value) => !value)}>
           <History size={17} /> History <span className="badge">{history.length}</span>
@@ -168,10 +172,10 @@ export const GeneratePage: React.FC<{
       {historyOpen && (
         <section className="card generation-history">
           <div className="card-header">
-            <div><h3>Generation History</h3><p className="text-xs text-theme-muted">Past work saved for this learning folder.</p></div>
+            <div><h3>Generation History</h3><p className="text-xs text-theme-muted">Past work saved for this workspace.</p></div>
             <button type="button" className="icon-button" onClick={() => setHistoryOpen(false)} title="Close history"><X size={17} /></button>
           </div>
-          {!history.length ? <p className="text-sm text-theme-muted">Nothing has been generated in this folder yet.</p> : (
+          {!history.length ? <p className="text-sm text-theme-muted">Nothing has been generated in this workspace yet.</p> : (
             <div className="generation-history-list">
               {history.map((item) => (
                 <button type="button" key={item.id} onClick={() => setSelectedArtifact(selectedArtifact?.id === item.id ? null : item)} className={selectedArtifact?.id === item.id ? 'active' : ''}>

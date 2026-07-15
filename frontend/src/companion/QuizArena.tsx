@@ -7,10 +7,11 @@
  * (thinking → teaching → celebrating / concerned) so a quiz feels like being
  * coached, not tested. Backed by the real quiz-generation endpoints.
  */
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ArrowRight, Check, PenTool, RotateCcw, Sparkles, Target, X } from 'lucide-react';
-import { answerGeneratedQuiz, generateWorkspaceQuiz, type GeneratedQuizQuestion } from '../api/client';
+import { useQuizSession, type QuizReviewItem } from '../components/shared/useQuizSession';
+import { ConceptPicker } from '../components/shared/ConceptPicker';
 import { useStudyStore } from '../store/studyStore';
 import { useUserStore } from '../store/userStore';
 import { useWorkspaceStore } from '../store/workspaceStore';
@@ -20,18 +21,6 @@ import { useCompanionStore } from './store';
 import { useQuizArenaStore, type QuizDifficulty, type QuizMode } from './quizArenaStore';
 import { useCanvasLaunchStore } from '../components/AICanvas/canvasLaunchStore';
 import type { CompanionChatApi } from './useCompanionChat';
-
-type Phase = 'setup' | 'loading' | 'active' | 'complete';
-
-interface ReviewItem {
-  question: GeneratedQuizQuestion;
-  number: number;
-  selectedAnswer: string;
-  correctAnswer: string;
-  isCorrect: boolean;
-  explanation: string;
-  sourceName?: string | null;
-}
 
 const DIFFICULTIES: QuizDifficulty[] = ['Easy', 'Medium', 'Hard'];
 const MODES: { id: QuizMode; label: string }[] = [
@@ -82,9 +71,7 @@ export const QuizArena: React.FC<{ chat: CompanionChatApi }> = ({ chat }) => {
   const arena = useQuizArenaStore();
   const graphData = useStudyStore((s) => s.graphData);
   const workspace = useWorkspaceStore((s) => s.workspace);
-  const studentId = useUserStore((s) => s.studentId);
   const studentData = useUserStore((s) => s.studentData);
-  const fetchStudentData = useUserStore((s) => s.fetchStudentData);
 
   const setEmotion = useCompanionStore((s) => s.setEmotion);
   const celebrate = useCompanionStore((s) => s.celebrate);
@@ -93,38 +80,33 @@ export const QuizArena: React.FC<{ chat: CompanionChatApi }> = ({ chat }) => {
 
   const nodes = graphData?.nodes ?? [];
 
-  const [phase, setPhase] = useState<Phase>('setup');
   const [conceptId, setConceptId] = useState<string>('');
   const [difficulty, setDifficulty] = useState<QuizDifficulty>('Medium');
   const [mode, setMode] = useState<QuizMode>('mixed');
 
-  const [questions, setQuestions] = useState<GeneratedQuizQuestion[]>([]);
-  const [index, setIndex] = useState(0);
-  const [selected, setSelected] = useState<number | null>(null);
-  const [answerText, setAnswerText] = useState('');
-  const [feedback, setFeedback] = useState<{ correct: boolean; answer: string; explanation: string } | null>(null);
-  const [review, setReview] = useState<ReviewItem[]>([]);
-  const [score, setScore] = useState(0);
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const startedAt = useRef<number>(Date.now());
+  // The one shared quiz state machine; the arena only adds mentor emotions.
+  const session = useQuizSession({
+    onGenerated: () => setEmotion('teaching', 4000),
+    onAnswered: (correct) => setEmotion(correct ? 'celebrating' : 'concerned', 2200),
+    onComplete: (finalRatio) => {
+      const mood = resultMood(finalRatio);
+      setEmotion(mood.emotion, mood.emotion === 'celebrating' ? 6000 : 4000);
+      if (finalRatio >= 0.7) celebrate();
+    },
+  });
+  const {
+    questions, index, question, score, feedback, error, submitting,
+    selectedOption, setSelectedOption, answerText, setAnswerText,
+  } = session;
+  const phase = session.phase === 'idle' ? 'setup' : session.phase;
 
-  const question = questions[index];
   const conceptName =
     nodes.find((n) => n.id === conceptId)?.display_name || arena.conceptName || humanizeConcept(conceptId);
   const mastery = studentData?.topics?.[conceptId]?.mastery_score;
 
   // ── Sync launch options into local setup state on each new session ────────
   useEffect(() => {
-    setPhase('setup');
-    setQuestions([]);
-    setReview([]);
-    setScore(0);
-    setIndex(0);
-    setFeedback(null);
-    setSelected(null);
-    setAnswerText('');
-    setError(null);
+    session.reset();
     setDifficulty(arena.difficulty);
     setMode(arena.questionMode);
     const preferred =
@@ -138,42 +120,19 @@ export const QuizArena: React.FC<{ chat: CompanionChatApi }> = ({ chat }) => {
 
   const generate = useCallback(
     async (targetConcept: string, targetDifficulty: QuizDifficulty, targetMode: QuizMode) => {
-      if (!workspace?.id || !targetConcept) {
-        setError('Select a concept to be quizzed on.');
-        return;
-      }
-      setPhase('loading');
-      setError(null);
+      if (!workspace?.id || !targetConcept) return;
       setEmotion('thinking');
-      try {
-        const data = await generateWorkspaceQuiz(workspace.id, targetConcept, targetMode, targetDifficulty);
-        if (!data.questions?.length) {
-          setError('No questions could be generated for this concept yet. Try another concept or add more sources.');
-          setPhase('setup');
-          setEmotion('concerned', 2500);
-          return;
-        }
-        setQuestions(data.questions);
-        setIndex(0);
-        setScore(0);
-        setReview([]);
-        setFeedback(null);
-        setSelected(null);
-        setAnswerText('');
-        startedAt.current = Date.now();
-        setPhase('active');
-        setEmotion('teaching', 4000);
-      } catch (err) {
-        const detail =
-          (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
-          'Could not create a quiz right now. Please try again.';
-        setError(detail);
-        setPhase('setup');
-        setEmotion('concerned', 2500);
-      }
+      await session.generate(targetConcept, targetMode, targetDifficulty);
     },
-    [workspace?.id, setEmotion],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [workspace?.id, setEmotion, session.generate],
   );
+
+  // A failed generation drops the session back to setup — mirror the mood.
+  useEffect(() => {
+    if (error && phase === 'setup') setEmotion('concerned', 2500);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [error]);
 
   // Auto-start when launched with a concept in hand.
   useEffect(() => {
@@ -183,68 +142,15 @@ export const QuizArena: React.FC<{ chat: CompanionChatApi }> = ({ chat }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [arena.sessionKey, conceptId]);
 
-  const submit = async () => {
-    if (!workspace?.id || !question || submitting) return;
-    if (question.question_type === 'multiple_choice' && selected === null) return;
-    if (question.question_type === 'short_answer' && !answerText.trim()) return;
-    setSubmitting(true);
+  const submit = () => {
     setEmotion('thinking');
-    try {
-      const result = await answerGeneratedQuiz({
-        student_id: studentId,
-        workspace_id: workspace.id,
-        question_id: question.id,
-        selected_option: question.question_type === 'multiple_choice' ? selected : null,
-        answer_text: question.question_type === 'short_answer' ? answerText : undefined,
-        hints_used: 0,
-        time_taken: Math.max(1, Math.round((Date.now() - startedAt.current) / 1000)),
-        difficulty,
-      });
-      if (result.is_correct) {
-        setScore((v) => v + 1);
-        setEmotion('celebrating', 2200);
-      } else {
-        setEmotion('concerned', 2200);
-      }
-      setFeedback({ correct: result.is_correct, answer: result.correct_answer, explanation: result.explanation });
-      setReview((items) => [
-        ...items.filter((it) => it.question.id !== question.id),
-        {
-          question,
-          number: index + 1,
-          selectedAnswer: result.selected_answer,
-          correctAnswer: result.correct_answer,
-          isCorrect: result.is_correct,
-          explanation: result.explanation,
-          sourceName: result.source_name || question.source_name,
-        },
-      ]);
-      fetchStudentData();
-    } catch (err) {
-      const detail =
-        (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Could not record this answer.';
-      setError(detail);
-    } finally {
-      setSubmitting(false);
-    }
+    session.submit(difficulty);
   };
 
   const next = () => {
-    if (index + 1 >= questions.length) {
-      setPhase('complete');
-      setFeedback(null);
-      const ratio = questions.length ? score / questions.length : 0;
-      const mood = resultMood(ratio);
-      setEmotion(mood.emotion, mood.emotion === 'celebrating' ? 6000 : 4000);
-      if (ratio >= 0.7) celebrate();
-      return;
-    }
-    setIndex((v) => v + 1);
-    setSelected(null);
-    setAnswerText('');
-    setFeedback(null);
-    startedAt.current = Date.now();
-    setEmotion('teaching', 3500);
+    const completing = index + 1 >= questions.length;
+    session.next();
+    if (!completing) setEmotion('teaching', 3500);
   };
 
   const openCanvasForMistake = () => {
@@ -261,7 +167,7 @@ export const QuizArena: React.FC<{ chat: CompanionChatApi }> = ({ chat }) => {
     });
   };
 
-  const learnMore = (item: ReviewItem) => {
+  const learnMore = (item: QuizReviewItem) => {
     const prompt = [
       `Explain this quiz question about ${item.question.concept_id ? humanizeConcept(item.question.concept_id) : conceptName}.`,
       `Question: ${item.question.prompt}`,
@@ -271,8 +177,7 @@ export const QuizArena: React.FC<{ chat: CompanionChatApi }> = ({ chat }) => {
       'Explain why the correct answer is right and what I should remember next time.',
     ].join('\n');
     arena.close();
-    useCompanionStore.getState().open();
-    chat.send(prompt, { mode: 'explain', conceptId: item.question.concept_id });
+    chat.explain(prompt, { conceptId: item.question.concept_id });
   };
 
   const close = useCallback(() => arena.close(), [arena]);
@@ -372,11 +277,12 @@ export const QuizArena: React.FC<{ chat: CompanionChatApi }> = ({ chat }) => {
 
                     <label className="quiz-field">
                       <span>Concept</span>
-                      <select value={conceptId} onChange={(e) => setConceptId(e.target.value)} className="quiz-select">
-                        {nodes.map((n) => (
-                          <option key={n.id} value={n.id}>{n.display_name}</option>
-                        ))}
-                      </select>
+                      <ConceptPicker
+                        value={conceptId}
+                        onChange={setConceptId}
+                        syncSelectedNode={false}
+                        className="quiz-select"
+                      />
                     </label>
 
                     <div className="quiz-field">
@@ -454,7 +360,7 @@ export const QuizArena: React.FC<{ chat: CompanionChatApi }> = ({ chat }) => {
                 {question.question_type === 'multiple_choice' ? (
                   <div className="quiz-options">
                     {question.options.map((opt, i) => {
-                      const isSel = selected === i;
+                      const isSel = selectedOption === i;
                       const showR = Boolean(feedback);
                       const correct = showR && feedback!.answer === opt;
                       const wrongPick = showR && isSel && !feedback!.correct;
@@ -462,7 +368,7 @@ export const QuizArena: React.FC<{ chat: CompanionChatApi }> = ({ chat }) => {
                         .filter(Boolean)
                         .join(' ');
                       return (
-                        <button key={`${question.id}-${i}`} type="button" className={cls} disabled={showR} onClick={() => setSelected(i)}>
+                        <button key={`${question.id}-${i}`} type="button" className={cls} disabled={showR} onClick={() => setSelectedOption(i)}>
                           <span className="quiz-option-letter">{String.fromCharCode(65 + i)}</span>
                           <span className="quiz-option-text">{opt}</span>
                           {correct && <Check size={18} aria-hidden />}
@@ -508,7 +414,7 @@ export const QuizArena: React.FC<{ chat: CompanionChatApi }> = ({ chat }) => {
                     <button
                       type="button"
                       className="quiz-start-btn"
-                      disabled={(question.question_type === 'multiple_choice' ? selected === null : !answerText.trim()) || submitting}
+                      disabled={(question.question_type === 'multiple_choice' ? selectedOption === null : !answerText.trim()) || submitting}
                       onClick={submit}
                     >
                       {submitting ? 'Checking…' : 'Submit answer'}
@@ -535,12 +441,11 @@ export const QuizArena: React.FC<{ chat: CompanionChatApi }> = ({ chat }) => {
 
                 <div className="quiz-review">
                   <h4>Review</h4>
-                  {review
-                    .sort((a, b) => a.number - b.number)
+                  {session.reviewItems
                     .map((item) => (
                       <div key={item.question.id} className={`quiz-review-item ${item.isCorrect ? 'correct' : 'wrong'}`}>
                         <div className="quiz-review-head">
-                          <span className="quiz-review-badge">{item.isCorrect ? '✓' : '✕'} Q{item.number}</span>
+                          <span className="quiz-review-badge">{item.isCorrect ? '✓' : '✕'} Q{item.questionNumber}</span>
                           <p className="quiz-review-prompt">{item.question.prompt}</p>
                         </div>
                         <p className="quiz-review-line"><span>Your answer:</span> {item.selectedAnswer || '—'}</p>
@@ -556,7 +461,7 @@ export const QuizArena: React.FC<{ chat: CompanionChatApi }> = ({ chat }) => {
                   <button type="button" className="btn btn-secondary" onClick={() => generate(conceptId, difficulty, mode)}>
                     <RotateCcw size={15} aria-hidden /> Retry concept
                   </button>
-                  <button type="button" className="btn btn-secondary" onClick={() => setPhase('setup')}>New quiz</button>
+                  <button type="button" className="btn btn-secondary" onClick={() => session.reset()}>New quiz</button>
                   <button type="button" className="quiz-start-btn" onClick={close}>Done</button>
                 </div>
               </motion.div>

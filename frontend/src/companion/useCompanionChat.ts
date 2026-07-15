@@ -20,7 +20,7 @@ import { useWorkspaceStore } from '../store/workspaceStore';
 import { buildGreeting, composerActions, humanizeConcept, uid } from './brain';
 import { makeMessage, useCompanionStore } from './store';
 import { useQuizArenaStore } from './quizArenaStore';
-import type { CompanionAction, CompanionChatMessage } from './types';
+import type { CompanionAction, CompanionChatMessage, CompanionEmotion } from './types';
 
 /** Quiz-style actions take over the screen with the full Quiz Arena. */
 const isQuizAction = (a: CompanionAction): boolean =>
@@ -59,6 +59,16 @@ export interface CompanionChatApi {
   runAction: (action: CompanionAction) => Promise<void>;
   /** Answer an inline quiz option. */
   answerQuiz: (messageId: string, optionIndex: number) => Promise<void>;
+  /**
+   * Ask the mentor to explain something from another surface (quiz review,
+   * flashcards). Opens the dock and runs a normal tutor turn.
+   */
+  explain: (prompt: string, opts?: { conceptId?: string | null; mode?: string }) => Promise<void>;
+  /**
+   * Post a local assistant note (quiz hints, notifications) without calling
+   * the tutoring model.
+   */
+  postNote: (content: string, opts?: { emotion?: CompanionEmotion; open?: boolean }) => void;
   /** Post the personalised greeting (first open of a session). */
   greet: () => void;
   /** Contextual quick actions for the composer row. */
@@ -201,6 +211,21 @@ const answerQuiz = async (messageId: string, optionIndex: number): Promise<void>
   }
 };
 
+const explain = async (
+  prompt: string,
+  opts?: { conceptId?: string | null; mode?: string },
+): Promise<void> => {
+  useCompanionStore.getState().open();
+  await send(prompt, { mode: opts?.mode ?? 'explain', conceptId: opts?.conceptId ?? null });
+};
+
+const postNote = (content: string, opts?: { emotion?: CompanionEmotion; open?: boolean }): void => {
+  const store = useCompanionStore.getState();
+  if (opts?.open) store.open();
+  store.addMessage(makeMessage('assistant', content, { emotion: opts?.emotion ?? 'teaching' }));
+  store.setEmotion(opts?.emotion ?? 'teaching', 4000);
+};
+
 const greet = (): void => {
   const store = useCompanionStore.getState();
   if (store.hasGreeted || !store.snapshot) return;
@@ -215,7 +240,7 @@ const quickActions = (): CompanionAction[] => {
   return snap ? composerActions(snap) : [];
 };
 
-const companionChatApi: CompanionChatApi = { send, runAction, answerQuiz, greet, quickActions };
+const companionChatApi: CompanionChatApi = { send, runAction, answerQuiz, explain, postNote, greet, quickActions };
 
 /** Any component may call this — every caller shares the same conversation. */
 export const useCompanionChat = (): CompanionChatApi => companionChatApi;

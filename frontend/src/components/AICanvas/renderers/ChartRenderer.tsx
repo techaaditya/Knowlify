@@ -73,7 +73,7 @@ export const ChartRenderer: React.FC<Props> = ({ payload, selectedIndex, onSelec
                   height={0}
                   rx={6}
                   fill={p.highlight ? '#BCA88A' : 'rgba(188,168,138,0.45)'}
-                  stroke={selected ? '#8A6D3B' : 'none'}
+                  stroke={selected ? 'var(--text-secondary)' : 'none'}
                   strokeWidth={selected ? 2.5 : 0}
                   animate={{ y, height: PAD_T + plotH - y }}
                   transition={{ duration: 0.5, ease: 'easeOut', delay: i * 0.05 }}
@@ -109,7 +109,7 @@ export const ChartRenderer: React.FC<Props> = ({ payload, selectedIndex, onSelec
                   cy={yForValue(p.value)}
                   r={selectedIndex === i ? 7 : p.highlight ? 6 : 4}
                   fill={p.highlight ? '#BCA88A' : '#FFFFFF'}
-                  stroke={selectedIndex === i ? '#8A6D3B' : '#BCA88A'}
+                  stroke={selectedIndex === i ? 'var(--text-secondary)' : '#BCA88A'}
                   strokeWidth={selectedIndex === i ? 3 : 2}
                 />
                 <text x={xForIndex(i)} y={yForValue(p.value) - 12} textAnchor="middle" fontSize="12" fontWeight={700} fill="#3B3833">

@@ -1,15 +1,17 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { GeneratedFlashcard, getDueFlashcards, getGeneratedFlashcards, reviewGeneratedFlashcard } from '../api/client';
 import { SelectedSourcesBar } from '../components/Sources/SelectedSourcesBar';
+import { ConceptPicker } from '../components/shared/ConceptPicker';
+import { useAutoGenerate } from '../components/shared/useAutoGenerate';
+import { useCompanionChat } from '../companion/useCompanionChat';
 import { useSourcesStore } from '../store/sourcesStore';
 import { useStudyStore } from '../store/studyStore';
 import { useUserStore } from '../store/userStore';
 import { useWorkspaceStore } from '../store/workspaceStore';
-import { useAssistantStore } from '../store/assistantStore';
 
 const ratingMeta = {
   again: { label: 'Again', detail: 'Review today', color: 'var(--weak-hue)', bg: 'var(--weak-bg)', border: 'var(--weak-border)' },
-  hard: { label: 'Hard', detail: 'Review tomorrow', color: '#8a6232', bg: '#fff8e8', border: '#e6cf9a' },
+  hard: { label: 'Hard', detail: 'Review tomorrow', color: 'var(--warning-hue)', bg: 'var(--warning-bg)', border: 'var(--warning-border)' },
   good: { label: 'Good', detail: 'Review in 3 days', color: 'var(--medium-hue)', bg: 'var(--medium-bg)', border: 'var(--medium-border)' },
   easy: { label: 'Easy', detail: 'Review next week', color: 'var(--strong-hue)', bg: 'var(--strong-bg)', border: 'var(--strong-border)' },
 } as const;
@@ -42,7 +44,7 @@ export const FlashcardsPage: React.FC<FlashcardsPageProps> = ({
   const studentId = useUserStore((state) => state.studentId);
   const studentData = useUserStore((state) => state.studentData);
   const fetchStudentData = useUserStore((state) => state.fetchStudentData);
-  const requestAssistantHelp = useAssistantStore((state) => state.requestHelp);
+  const chat = useCompanionChat();
   const [topic, setTopic] = useState('');
   const [cards, setCards] = useState<GeneratedFlashcard[]>([]);
   const [dueReviews, setDueReviews] = useState<any[]>([]);
@@ -51,7 +53,6 @@ export const FlashcardsPage: React.FC<FlashcardsPageProps> = ({
   const [loading, setLoading] = useState(false);
   const [rating, setRating] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const consumedAutoGenerateKey = useRef<number | null>(null);
 
   useEffect(() => {
     if (graphData?.nodes.length) setTopic(selectedNodeId || graphData.nodes[0].id);
@@ -87,32 +88,30 @@ export const FlashcardsPage: React.FC<FlashcardsPageProps> = ({
     }
   };
 
-  useEffect(() => {
-    if (!autoGenerateKey || consumedAutoGenerateKey.current === autoGenerateKey) return;
-    if (!workspace?.id || !topic || loading) return;
-    if (autoConceptId && autoConceptId !== topic) {
-      setTopic(autoConceptId);
-      setSelectedNodeId(autoConceptId);
-      return;
-    }
-    consumedAutoGenerateKey.current = autoGenerateKey;
-    onAutoGenerateConsumed?.();
-    generateCards();
-  }, [autoGenerateKey, autoConceptId, topic, workspace?.id, loading]);
+  useAutoGenerate({
+    autoGenerateKey,
+    autoConceptId,
+    topic,
+    setTopic: (conceptId) => {
+      setTopic(conceptId);
+      setSelectedNodeId(conceptId);
+    },
+    ready: Boolean(workspace?.id && topic && !loading),
+    onConsumed: onAutoGenerateConsumed,
+    run: generateCards,
+  });
 
   const explainCard = () => {
     if (!workspace?.id || !card) return;
-    requestAssistantHelp({
-      workspaceId: workspace.id,
-      conceptId: topic,
-      title: 'Explain this flashcard',
-      prompt: [
+    chat.explain(
+      [
         `I am studying the flashcard concept ${concept?.display_name || topic}.`,
         `Prompt: ${card.front}`,
         `Answer: ${card.back}`,
         'Explain the idea in simpler language, give one useful example, and tell me what I should remember for recall.',
       ].join('\n'),
-    });
+      { conceptId: topic },
+    );
   };
 
   const rateCard = async (value: 'again' | 'hard' | 'good' | 'easy') => {
@@ -154,7 +153,7 @@ export const FlashcardsPage: React.FC<FlashcardsPageProps> = ({
         </div>
       )}
       {selectedSources.length === 0 ? (
-        <div className="card p-8 text-center text-theme-muted text-sm">Select processed sources in the Sources page first.</div>
+        <div className="card p-8 text-center text-theme-muted text-sm">Select processed sources in the Library first.</div>
       ) : !graphData?.nodes.length ? (
         <div className="card p-8 text-center text-theme-muted text-sm">Your selected sources do not have an available knowledge graph yet.</div>
       ) : (
@@ -163,20 +162,17 @@ export const FlashcardsPage: React.FC<FlashcardsPageProps> = ({
             <div className="flex flex-col lg:flex-row gap-4 lg:items-end">
               <div className="form-group flex-1 mb-0">
                 <label htmlFor="flashcard-topic">Concept</label>
-                <select
+                <ConceptPicker
                   id="flashcard-topic"
                   value={topic}
                   className="form-control"
-                  onChange={(event) => {
-                    setTopic(event.target.value);
-                    setSelectedNodeId(event.target.value);
+                  onChange={(conceptId) => {
+                    setTopic(conceptId);
                     setCards([]);
                     setIndex(0);
                     setFlipped(false);
                   }}
-                >
-                  {graphData.nodes.map((node) => <option key={node.id} value={node.id}>{node.display_name}</option>)}
-                </select>
+                />
               </div>
               <div className="flex gap-3 flex-wrap">
                 <button type="button" className="btn btn-primary" onClick={generateCards} disabled={loading}>
@@ -279,14 +275,7 @@ export const FlashcardsPage: React.FC<FlashcardsPageProps> = ({
                   <button
                     type="button"
                     onClick={() => setFlipped((value) => !value)}
-                    className="w-full text-left rounded-lg border bg-white shadow-sm transition-transform hover:-translate-y-0.5"
-                    style={{
-                      borderColor: flipped ? 'var(--swatch-4)' : 'var(--border-soft)',
-                      minHeight: 300,
-                      background: flipped
-                        ? 'linear-gradient(135deg, #fffdf8 0%, #f7efe2 100%)'
-                        : 'linear-gradient(135deg, #ffffff 0%, #f6f4ef 100%)',
-                    }}
+                    className={`w-full text-left rounded-lg shadow-sm transition-transform hover:-translate-y-0.5 flashcard-face ${flipped ? 'flipped' : ''}`}
                   >
                     <div className="h-full min-h-72 p-8 flex flex-col justify-between">
                       <div className="flex items-center justify-between gap-3">
@@ -302,7 +291,7 @@ export const FlashcardsPage: React.FC<FlashcardsPageProps> = ({
                   <div className="flex flex-wrap gap-3">
                     <button type="button" className="btn btn-secondary" onClick={() => setFlipped((value) => !value)}>{flipped ? 'Show Prompt' : 'Reveal Answer'}</button>
                     <button type="button" className="btn btn-secondary" onClick={() => { setIndex((value) => (value + 1) % cards.length); setFlipped(false); }}>Skip</button>
-                    <button type="button" className="btn btn-secondary" onClick={explainCard}>Ask Learning Assistant</button>
+                    <button type="button" className="btn btn-secondary" onClick={explainCard}>Ask Mentor</button>
                   </div>
                   <div className="rounded-lg border border-theme-border bg-theme-bg p-4">
                     <div className="flex items-start justify-between gap-3 mb-3">

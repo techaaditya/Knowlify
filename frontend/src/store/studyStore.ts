@@ -30,7 +30,6 @@ interface StudyState {
   setCourse: (course: string) => void;
   fetchGraphData: (course?: string, workspaceId?: string) => Promise<void>;
   setSelectedNodeId: (nodeId: string | null) => void;
-  runExtractionPipeline: () => Promise<GraphData>;
 }
 
 export const useStudyStore = create<StudyState>((set, get) => ({
@@ -65,14 +64,5 @@ export const useStudyStore = create<StudyState>((set, get) => ({
     const graph = get().graphData;
     const node = graph?.nodes.find((n) => n.id === nodeId) || null;
     set({ selectedNodeId: nodeId, selectedNodeData: node });
-  },
-  runExtractionPipeline: async () => {
-    set({ loading: true });
-    try {
-      throw new Error('Upload a source to a workspace to create a knowledge graph.');
-    } catch (err: any) {
-      set({ error: err.message, loading: false });
-      throw err;
-    }
   },
 }));

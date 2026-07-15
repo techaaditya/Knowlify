@@ -127,24 +127,22 @@ interface DashboardPageProps {
 export const DashboardPage: React.FC<DashboardPageProps> = ({ onLearningAction, onChatAction }) => {
   const studentId = useUserStore((state) => state.studentId);
   const workspace = useWorkspaceStore((state) => state.workspace);
+  const wsDashboard = useWorkspaceStore((state) => state.dashboard);
+  const fetchWsDashboard = useWorkspaceStore((state) => state.fetchDashboard);
   const [dashboard, setDashboard] = useState<DashboardEngineSummary | null>(null);
   const [scope, setScope] = useState<'workspace' | 'overall'>('workspace');
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchWsDashboard();
+  }, [workspace?.id, fetchWsDashboard]);
 
   useEffect(() => {
     setLoading(true);
     getDashboardEngineSummary(studentId, workspace?.id, scope)
-      .then((data) => {
-        setDashboard(data);
-        setError(null);
-      })
-      .catch(() => {
-        setError('Dashboard engine summary is unavailable.');
-      })
-      .finally(() => {
-        setLoading(false);
-      });
+      .then((data) => setDashboard(data))
+      .catch(() => setDashboard(null))
+      .finally(() => setLoading(false));
   }, [studentId, workspace?.id, scope]);
 
   const masteryBars = useMemo(() => {
@@ -156,48 +154,124 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onLearningAction, 
   }, [dashboard]);
 
   if (loading) {
-    return <div className="text-center p-8">Loading Dashboard Engine...</div>;
+    return <div className="text-center p-8">Loading your dashboard...</div>;
   }
 
-  if (error || !dashboard) {
-    return <div className="text-center p-8 text-mastery-weak-text">{error || 'No dashboard data available.'}</div>;
-  }
-
-  const summary = dashboard.summary;
-  const recommendation = dashboard.adaptive_recommendation;
+  const workspaceStats = wsDashboard?.workspace || workspace;
+  const summary = dashboard?.summary;
+  const recommendation = dashboard?.adaptive_recommendation;
   const recommendedConcept = recommendation?.recommended_concept || recommendation?.concept_id;
   // Urgent (rose) callout when there is a misconception or high forgetting risk; otherwise a calmer amber tone.
   const isUrgent = Boolean(recommendation?.misconception) || (recommendation?.forgetting_risk || '').toLowerCase() === 'high';
+
+  const recentSourcesCard = (
+    <div className="card">
+      <div className="card-header">
+        <h3>Recent Sources</h3>
+      </div>
+      {wsDashboard?.recent_sources?.length ? (
+        <div className="recent-sources-list">
+          {wsDashboard.recent_sources.map((s) => (
+            <div key={s.id} className="recent-source-item">
+              <div>
+                <p className="recent-source-name">{s.source_name}</p>
+                <p className="recent-source-meta">
+                  {s.source_type} · {s.chunk_count} chunks · {s.entity_count} entities
+                </p>
+              </div>
+              <span className={`source-status-badge status-${s.processing_status}`}>
+                {s.processing_status}
+              </span>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="text-xs text-theme-muted p-4">No sources imported yet — add some in the Library.</p>
+      )}
+      {Boolean(wsDashboard?.popular_topics?.length) && (
+        <>
+          <div className="card-header mt-4">
+            <h3>Popular Topics</h3>
+          </div>
+          <div className="topic-cloud">
+            {wsDashboard!.popular_topics.map((t) => (
+              <span key={t} className="topic-pill">{t}</span>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
 
   return (
     <div className="space-y-8">
       <div className="dashboard-header">
         <div className="header-title">
-          <h2>Dashboard Engine</h2>
-          <p>{scope === 'overall' ? 'Overall analysis across all learning folders' : `Analysis for ${workspace?.name || 'the active learning folder'}`}</p>
+          <h2>Home</h2>
+          <p>{scope === 'overall' ? 'Overall analysis across all workspaces' : `Your knowledge and progress in ${workspace?.name || 'the active workspace'}`}</p>
         </div>
         <div className="flex flex-col items-stretch gap-3 lg:items-end">
           <div className="flex gap-2 justify-end">
-            <button type="button" className={`btn ${scope === 'workspace' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setScope('workspace')}>This Folder</button>
+            <button type="button" className={`btn ${scope === 'workspace' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setScope('workspace')}>This Workspace</button>
             <button type="button" className={`btn ${scope === 'overall' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setScope('overall')}>Overall</button>
           </div>
-          <div className="global-stats">
-            <div className="stat-box">
-              <span className="stat-label">Mastery</span>
-              <span className="stat-value">{compactPercent(summary.average_mastery)}</span>
+          {summary && (
+            <div className="global-stats">
+              <div className="stat-box">
+                <span className="stat-label">Mastery</span>
+                <span className="stat-value">{compactPercent(summary.average_mastery)}</span>
+              </div>
+              <div className="stat-box">
+                <span className="stat-label">Accuracy</span>
+                <span className="stat-value">{compactPercent(summary.accuracy_rate)}</span>
+              </div>
+              <div className={`stat-box warning-box ${summary.misconception_count > 0 ? 'active-misconception' : ''}`}>
+                <span className="stat-label">Misconceptions</span>
+                <span className="stat-value">{summary.misconception_count}</span>
+              </div>
             </div>
-            <div className="stat-box">
-              <span className="stat-label">Accuracy</span>
-              <span className="stat-value">{compactPercent(summary.accuracy_rate)}</span>
-            </div>
-            <div className={`stat-box warning-box ${summary.misconception_count > 0 ? 'active-misconception' : ''}`}>
-              <span className="stat-label">Misconceptions</span>
-              <span className="stat-value">{summary.misconception_count}</span>
-            </div>
-          </div>
+          )}
         </div>
       </div>
 
+      {/* Workspace at a glance */}
+      <div className="knowledge-metrics-grid">
+        <div className="metric-card">
+          <span className="metric-icon tint-sand">📚</span>
+          <span className="metric-value">{workspaceStats?.total_sources ?? 0}</span>
+          <span className="metric-label">Sources</span>
+        </div>
+        <div className="metric-card">
+          <span className="metric-icon tint-medium">🧩</span>
+          <span className="metric-value">{workspaceStats?.total_chunks ?? 0}</span>
+          <span className="metric-label">Chunks</span>
+        </div>
+        <div className="metric-card">
+          <span className="metric-icon tint-strong">🔷</span>
+          <span className="metric-value">{workspaceStats?.total_entities ?? 0}</span>
+          <span className="metric-label">Entities</span>
+        </div>
+        <div className="metric-card">
+          <span className="metric-icon tint-weak">🔗</span>
+          <span className="metric-value">{workspaceStats?.total_relationships ?? 0}</span>
+          <span className="metric-label">Relationships</span>
+        </div>
+      </div>
+
+      {!dashboard || !summary ? (
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+          {recentSourcesCard}
+          <div className="card p-8 text-center">
+            <span className="text-3xl block mb-3">📈</span>
+            <h3 className="font-bold text-sm mb-1">No learning analytics yet</h3>
+            <p className="text-xs text-theme-muted max-w-[340px] mx-auto">
+              Take a quiz or review flashcards in Study Tools and your mastery,
+              weak areas, and adaptive recommendations will light up here.
+            </p>
+          </div>
+        </div>
+      ) : (
+      <>
       <div className="knowledge-metrics-grid">
         <div className="metric-card">
           <span className="metric-value">{summary.total_attempts}</span>
@@ -245,40 +319,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onLearningAction, 
           )}
         </div>
 
-        <div className="card">
-          <div className="card-header">
-            <h3>Source Organization</h3>
-            <span className="badge">{scope === 'overall' ? 'All Folders' : 'This Folder'}</span>
-          </div>
-          <div className="knowledge-metrics-grid">
-            <div className="metric-item">
-              <span className="metric-label">Sources</span>
-              <span className="metric-value">{dashboard.source_organization.total_sources ?? dashboard.source_organization.workspace_count ?? 0}</span>
-            </div>
-            <div className="metric-item">
-              <span className="metric-label">Processed</span>
-              <span className="metric-value">{dashboard.source_organization.completed_sources ?? '-'}</span>
-            </div>
-            <div className="metric-item">
-              <span className="metric-label">Chunks</span>
-              <span className="metric-value">{dashboard.source_organization.total_chunks ?? '-'}</span>
-            </div>
-            <div className="metric-item">
-              <span className="metric-label">Relations</span>
-              <span className="metric-value">{dashboard.source_organization.total_relationships ?? '-'}</span>
-            </div>
-          </div>
-          {dashboard.source_organization.source_types && (
-            <div className="mt-4 space-y-2">
-              {Object.entries(dashboard.source_organization.source_types).map(([type, count]) => (
-                <div key={type} className="weak-chart-row">
-                  <div className="weak-chart-label"><strong>{type.toUpperCase()}</strong><span>{count} source(s)</span></div>
-                  <div className="weak-chart-track"><div className="weak-chart-fill" style={{ width: `${Math.min(100, count * 20)}%` }} /><span>{count}</span></div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+        {recentSourcesCard}
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
@@ -447,6 +488,8 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onLearningAction, 
           ))}
         </div>
       </div>
+      </>
+      )}
     </div>
   );
 };

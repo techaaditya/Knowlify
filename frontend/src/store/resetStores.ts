@@ -2,7 +2,7 @@ import { useUserStore } from './userStore';
 import { useWorkspaceStore } from './workspaceStore';
 import { useSourcesStore } from './sourcesStore';
 import { useStudyStore } from './studyStore';
-import { useAssistantStore } from './assistantStore';
+import { useCompanionStore } from '../companion/store';
 
 /**
  * Wipe all user-scoped cached state. Zustand stores are module singletons that
@@ -14,7 +14,6 @@ export function resetUserScopedStores(): void {
     workspace: null,
     workspaces: [],
     dashboard: null,
-    graphData: null,
     error: null,
   });
   useSourcesStore.setState({
@@ -32,9 +31,10 @@ export function resetUserScopedStores(): void {
     error: null,
   });
   useUserStore.setState({ studentData: null, error: null });
-  useAssistantStore.setState({
+  useCompanionStore.setState({
     isOpen: false,
+    hasGreeted: false,
     messages: [],
-    pendingRequest: null,
+    unread: 0,
   });
 }

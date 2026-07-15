@@ -24,6 +24,7 @@ export default {
           secondary: '#6B6459',   // --text-secondary
           muted: '#9E978C',       // --text-muted
           placeholder: '#B8B0A4', // --text-placeholder
+          ivory: '#F2EFE9',       // --swatch-2
         },
         mastery: {
           strong: {
@@ -45,6 +46,11 @@ export default {
             bg: '#F5F3ED',
             border: '#BEB7A4',
             text: '#686253',
+          },
+          warning: {
+            bg: '#FFF8E8',
+            border: '#E6CF9A',
+            text: '#8A6232',
           }
         }
       },

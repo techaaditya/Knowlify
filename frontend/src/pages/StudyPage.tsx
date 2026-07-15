@@ -33,7 +33,7 @@ export const StudyPage: React.FC<StudyPageProps> = ({ initialMode, initialMessag
 
       <div className="dashboard-header">
         <div className="header-title">
-          <h2>Chat with Your Tutor</h2>
+          <h2>AI Tutor</h2>
           <p>
             {selectedNodeData
               ? `Focused on: ${selectedNodeData.display_name}`
@@ -47,27 +47,21 @@ export const StudyPage: React.FC<StudyPageProps> = ({ initialMode, initialMessag
           <span className="text-3xl mb-3">💬</span>
           <h3 className="font-bold text-sm mb-1">No Sources Selected</h3>
           <p className="text-xs text-theme-muted max-w-[320px]">
-            Go to <strong>Sources</strong> and select the documents, websites, or notes
+            Go to <strong>Library</strong> and select the documents, websites, or notes
             you want to chat with.
           </p>
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div className="flex flex-col gap-4">
           {/* Concept context bar (optional — chat works without a node too) */}
           {selectedNodeData && (
-            <div style={{
-              padding: '10px 16px',
-              background: 'var(--swatch-2)',
-              border: '1px solid var(--border-soft)',
-              borderRadius: 'var(--radius-md)',
-              display: 'flex', alignItems: 'center', gap: 12, fontSize: 12,
-            }}>
-              <span style={{ fontSize: 18 }}>🕸️</span>
+            <div className="flex items-center gap-3 text-xs px-4 py-2.5 rounded-lg border border-theme-border bg-theme-ivory">
+              <span className="text-lg">🕸️</span>
               <div>
-                <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
+                <span className="font-bold text-theme-text">
                   {selectedNodeData.display_name}
                 </span>
-                <span style={{ color: 'var(--text-muted)', marginLeft: 8 }}>
+                <span className="text-theme-muted ml-2">
                   {selectedNodeData.description.slice(0, 100)}
                   {selectedNodeData.description.length > 100 ? '…' : ''}
                 </span>
@@ -75,7 +69,7 @@ export const StudyPage: React.FC<StudyPageProps> = ({ initialMode, initialMessag
             </div>
           )}
 
-          <div style={{ height: 640 }}>
+          <div className="h-[640px]">
             <ChatWindow
               concept={selectedNodeData?.display_name}
               conceptId={selectedNodeId || undefined}

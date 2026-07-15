@@ -32,7 +32,7 @@ export const KnowledgeMapPage: React.FC = () => {
         <div className="kg-empty">
           <span className="kg-empty-icon" aria-hidden>🕸️</span>
           <h3>No sources selected</h3>
-          <p>Select processed sources from the Sources page to visualize their knowledge graph.</p>
+          <p>Select processed sources from the Library to visualize their knowledge graph.</p>
         </div>
       ) : (
         <div className="kg-body">

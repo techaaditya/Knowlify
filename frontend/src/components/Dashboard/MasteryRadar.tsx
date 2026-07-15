@@ -29,7 +29,7 @@ export const MasteryRadar: React.FC<{ data: MasteryItem[] }> = ({ data }) => {
                   <span className="truncate max-w-[150px]">{item.topic}</span>
                   <span>{item.mastery}%</span>
                 </div>
-                <div className="w-full bg-[#F2EFE9] h-2.5 rounded-full overflow-hidden border border-theme-border/30">
+                <div className="w-full bg-theme-ivory h-2.5 rounded-full overflow-hidden border border-theme-border/30">
                   <div className={`h-full rounded-full ${colorClass}`} style={{ width: widthPct }} />
                 </div>
               </div>

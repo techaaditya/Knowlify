@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { LogOut } from 'lucide-react';
+import { Bot, Home, Layers3, Library, LogOut, Network, PenTool, type LucideIcon } from 'lucide-react';
 import { useUserStore } from './store/userStore';
 import { useAuthStore } from './store/authStore';
 import { useStudyStore } from './store/studyStore';
@@ -9,15 +9,13 @@ import { DashboardPage } from './pages/DashboardPage';
 import { StudyPage } from './pages/StudyPage';
 import { KnowledgeMapPage } from './pages/KnowledgeMapPage';
 import { SourcesPage } from './pages/SourcesPage';
-import { KnowledgeDashboardPage } from './pages/KnowledgeDashboardPage';
 import { GenerateMode, GeneratePage } from './pages/GeneratePage';
 import { WorkspaceHeader } from './components/Workspace/WorkspaceHeader';
-import { SecondaryAssistant } from './components/Assistant/SecondaryAssistant';
 import { CompanionDock } from './companion/CompanionDock';
 import { AICanvasPage } from './pages/AICanvasPage';
 import { useCanvasLaunchStore } from './components/AICanvas/canvasLaunchStore';
 
-type Tab = 'dashboard' | 'sources' | 'chat' | 'graph' | 'generate' | 'analytics' | 'canvas';
+type Tab = 'dashboard' | 'sources' | 'chat' | 'graph' | 'generate' | 'canvas';
 interface ChatActionPayload {
   conceptId?: string | null;
   mode?: string;
@@ -29,14 +27,13 @@ export interface GenerateActionRequest {
   conceptId?: string | null;
 }
 
-const NAV_ITEMS: { id: Tab; label: string }[] = [
-  { id: 'dashboard', label: 'Dashboard' },
-  { id: 'sources', label: 'Sources' },
-  { id: 'chat', label: 'Chat' },
-  { id: 'graph', label: 'Knowledge Graph' },
-  { id: 'canvas', label: 'AI Canvas' },
-  { id: 'generate', label: 'Generate' },
-  { id: 'analytics', label: 'Analytics' },
+const NAV_ITEMS: { id: Tab; label: string; icon: LucideIcon }[] = [
+  { id: 'dashboard', label: 'Home', icon: Home },
+  { id: 'sources', label: 'Library', icon: Library },
+  { id: 'chat', label: 'AI Tutor', icon: Bot },
+  { id: 'graph', label: 'Knowledge Map', icon: Network },
+  { id: 'canvas', label: 'AI Canvas', icon: PenTool },
+  { id: 'generate', label: 'Study Tools', icon: Layers3 },
 ];
 
 export const App: React.FC = () => {
@@ -95,7 +92,7 @@ export const App: React.FC = () => {
   const renderContent = () => {
     switch (activeTab) {
       case 'dashboard':
-        return <KnowledgeDashboardPage />;
+        return <DashboardPage onLearningAction={handleLearningAction} onChatAction={handleChatAction} />;
       case 'sources':
         return <SourcesPage openModalOnMount={addSourcesTrigger > 0} />;
       case 'chat':
@@ -119,10 +116,8 @@ export const App: React.FC = () => {
             onConsumeRequest={() => setPendingGenerateRequest(null)}
           />
         );
-      case 'analytics':
-        return <DashboardPage onLearningAction={handleLearningAction} onChatAction={handleChatAction} />;
       default:
-        return <KnowledgeDashboardPage />;
+        return <DashboardPage onLearningAction={handleLearningAction} onChatAction={handleChatAction} />;
     }
   };
 
@@ -151,7 +146,7 @@ export const App: React.FC = () => {
   };
 
   const handleCreateWorkspace = async () => {
-    const name = window.prompt('Name this learning folder');
+    const name = window.prompt('Name this workspace');
     if (name?.trim()) await createWorkspace(name.trim());
   };
 
@@ -181,13 +176,14 @@ export const App: React.FC = () => {
                   onClick={() => setActiveTab(item.id)}
                   className={`sidebar-nav-item ${activeTab === item.id ? 'active' : ''}`}
                 >
-                  {item.label}
+                  <item.icon size={16} aria-hidden />
+                  <span>{item.label}</span>
                 </button>
               </li>
             ))}
           </ul>
 
-          <div className="nav-label">Learning Folder</div>
+          <div className="nav-label">Workspace</div>
           <div className="course-selector-container">
             <label htmlFor="course-select">Active Workspace</label>
             <select
@@ -198,7 +194,7 @@ export const App: React.FC = () => {
             >
               {workspaces.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
             </select>
-            <button type="button" className="btn btn-secondary mt-2 w-full" onClick={handleCreateWorkspace}>New Folder</button>
+            <button type="button" className="btn btn-secondary mt-2 w-full" onClick={handleCreateWorkspace}>New Workspace</button>
           </div>
 
           {studentData && (
@@ -253,7 +249,6 @@ export const App: React.FC = () => {
         />
         {renderContent()}
       </main>
-      <SecondaryAssistant />
 
       {/* AI Learning Companion — always present, lower-right */}
       <CompanionDock />

@@ -6,12 +6,14 @@
  */
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Check, ChevronDown, Flame, RotateCcw, Send, Sparkles, X } from 'lucide-react';
+import { ChevronDown, Flame, RotateCcw, Send } from 'lucide-react';
 import { CompanionAvatar } from './CompanionAvatar';
-import MarkdownLite from './markdown';
+import Markdown from '../components/shared/Markdown';
+import InlineQuizCard from '../components/shared/InlineQuizCard';
+import InlineFlashcards from '../components/shared/InlineFlashcards';
 import { useCompanionStore } from './store';
 import type { CompanionChatApi } from './useCompanionChat';
-import type { CompanionChatMessage, CompanionEmotion } from './types';
+import type { CompanionEmotion } from './types';
 
 const EMOTION_LABEL: Record<CompanionEmotion, string> = {
   idle: 'Here with you',
@@ -25,77 +27,6 @@ const EMOTION_LABEL: Record<CompanionEmotion, string> = {
   surprised: 'Oh!',
   confident: 'You’ve got this',
   curious: 'Curious',
-};
-
-// ── Inline quiz card ─────────────────────────────────────────────────────────
-
-const QuizCard: React.FC<{ msg: CompanionChatMessage; chat: CompanionChatApi }> = ({ msg, chat }) => {
-  const quiz = msg.quiz!;
-  const state = msg.quizState;
-  return (
-    <div className="companion-quiz">
-      <div className="companion-quiz-prompt">
-        <Sparkles size={13} aria-hidden />
-        <span>{quiz.prompt}</span>
-      </div>
-      <div className="companion-quiz-options">
-        {quiz.options.map((opt, i) => {
-          const selected = state?.selected === i;
-          const showResult = state?.answered && state.isCorrect != null;
-          const cls = [
-            'companion-quiz-option',
-            selected ? 'selected' : '',
-            showResult && selected ? (state!.isCorrect ? 'correct' : 'wrong') : '',
-          ]
-            .filter(Boolean)
-            .join(' ');
-          return (
-            <button
-              key={i}
-              type="button"
-              className={cls}
-              disabled={state?.answered}
-              onClick={() => chat.answerQuiz(msg.id, i)}
-            >
-              <span className="companion-quiz-letter">{String.fromCharCode(65 + i)}</span>
-              <span>{opt}</span>
-              {showResult && selected && (state!.isCorrect ? <Check size={14} aria-hidden /> : <X size={14} aria-hidden />)}
-            </button>
-          );
-        })}
-      </div>
-      {state?.answered && state.explanation && (
-        <div className={`companion-quiz-result ${state.isCorrect ? 'correct' : 'wrong'}`}>
-          {!state.isCorrect && state.correctAnswer && (
-            <p className="companion-quiz-answer">Correct answer: <strong>{state.correctAnswer}</strong></p>
-          )}
-          <p>{state.explanation}</p>
-        </div>
-      )}
-    </div>
-  );
-};
-
-// ── Inline flip flashcards ───────────────────────────────────────────────────
-
-const FlashcardStrip: React.FC<{ cards: NonNullable<CompanionChatMessage['flashcards']> }> = ({ cards }) => {
-  const [flipped, setFlipped] = useState<Record<string, boolean>>({});
-  return (
-    <div className="companion-flashcards">
-      {cards.map((c) => (
-        <button
-          key={c.id}
-          type="button"
-          className={`companion-flashcard ${flipped[c.id] ? 'flipped' : ''}`}
-          onClick={() => setFlipped((f) => ({ ...f, [c.id]: !f[c.id] }))}
-          aria-label={flipped[c.id] ? 'Show question' : 'Reveal answer'}
-        >
-          <span className="companion-flashcard-tag">{flipped[c.id] ? 'Answer' : 'Tap to reveal'}</span>
-          <span>{flipped[c.id] ? c.back : c.front}</span>
-        </button>
-      ))}
-    </div>
-  );
 };
 
 // ── Progress strip (subtle gamification) ─────────────────────────────────────
@@ -227,9 +158,27 @@ export const CompanionPanel: React.FC<{ chat: CompanionChatApi }> = ({ chat }) =
             )}
             <div className="companion-msg-body">
               <div className="companion-bubble">
-                <MarkdownLite text={msg.content} />
-                {msg.quiz && <QuizCard msg={msg} chat={chat} />}
-                {msg.flashcards && msg.flashcards.length > 0 && <FlashcardStrip cards={msg.flashcards} />}
+                <Markdown text={msg.content} />
+                {msg.quiz && (
+                  <InlineQuizCard
+                    prompt={msg.quiz.prompt}
+                    options={msg.quiz.options}
+                    answered={Boolean(msg.quizState?.answered)}
+                    selected={msg.quizState?.selected ?? null}
+                    result={
+                      msg.quizState?.answered && msg.quizState.isCorrect != null
+                        ? {
+                            isCorrect: msg.quizState.isCorrect,
+                            explanation: msg.quizState.explanation ?? '',
+                            correctAnswer: msg.quizState.correctAnswer,
+                          }
+                        : null
+                    }
+                    onAnswer={(i) => chat.answerQuiz(msg.id, i)}
+                    disabled={sending}
+                  />
+                )}
+                {msg.flashcards && msg.flashcards.length > 0 && <InlineFlashcards cards={msg.flashcards} />}
               </div>
 
               {msg.sources && msg.sources.length > 0 && (

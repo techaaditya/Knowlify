@@ -1,0 +1,188 @@
+/* ============================================================
+   Shared chat-surface components — markdown, inline quiz,
+   inline flashcards. Used by the tutor chat and the companion.
+   Everything on Warm Alabaster design tokens.
+   ============================================================ */
+
+/* ── Markdown-lite ─────────────────────────────────────────── */
+.md-lite p + p { margin-top: 0.5rem; }
+
+.md-lite ul,
+.md-lite ol {
+    margin: 0.4rem 0 0.2rem 1.1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.md-lite .md-heading {
+    font-family: var(--font-heading);
+    color: var(--text-primary);
+    margin: 0.6rem 0 0.25rem;
+    line-height: 1.35;
+}
+.md-lite .md-heading:first-child { margin-top: 0; }
+.md-lite .md-h1 { font-size: 1.05em; font-weight: 700; }
+.md-lite .md-h2 { font-size: 1em;    font-weight: 700; }
+.md-lite .md-h3 { font-size: 0.95em; font-weight: 600; }
+
+.md-lite code {
+    font-family: var(--font-mono);
+    font-size: 0.76em;
+    background: rgba(188, 168, 138, 0.14);
+    color: var(--text-primary);
+    border-radius: 4px;
+    padding: 0.1em 0.35em;
+}
+
+.md-code {
+    margin: 0.5rem 0 0.2rem;
+    background: #322f2a;
+    color: #efe9dd;
+    border-radius: var(--radius-md);
+    padding: 0.7rem 0.875rem;
+    overflow-x: auto;
+    font-family: var(--font-mono);
+    font-size: 0.74rem;
+    line-height: 1.55;
+}
+.md-code code { background: none; padding: 0; font-size: inherit; color: inherit; }
+
+/* Inside a filled user bubble the code chip needs a light backdrop. */
+.companion-msg.user .md-lite code,
+.chat-bubble.user .md-lite code {
+    background: rgba(255, 255, 255, 0.22);
+    color: inherit;
+}
+
+/* ── Inline quiz card ──────────────────────────────────────── */
+.inline-quiz {
+    margin-top: 0.65rem;
+    border-top: 1px solid var(--border-faint);
+    padding-top: 0.65rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+}
+
+.inline-quiz-prompt {
+    display: flex;
+    gap: 0.4rem;
+    align-items: flex-start;
+    font-weight: 600;
+    font-size: 0.8rem;
+    color: var(--text-primary);
+}
+
+.inline-quiz-prompt svg { margin-top: 3px; color: var(--swatch-4); flex-shrink: 0; }
+
+.inline-quiz-options { display: flex; flex-direction: column; gap: 0.4rem; }
+
+.inline-quiz-option {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    text-align: left;
+    font-family: var(--font-body);
+    font-size: 0.78rem;
+    color: var(--text-primary);
+    background: var(--swatch-1);
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-md);
+    padding: 0.5rem 0.7rem;
+    cursor: pointer;
+    transition: border-color var(--duration) var(--ease-out), background var(--duration) var(--ease-out);
+}
+
+.inline-quiz-option:hover:not(:disabled) { border-color: var(--swatch-4); background: rgba(188, 168, 138, 0.08); }
+.inline-quiz-option:disabled { cursor: default; opacity: 0.85; }
+
+.inline-quiz-option.correct { border-color: var(--strong-hue); background: var(--strong-bg); }
+.inline-quiz-option.wrong   { border-color: var(--weak-hue);   background: var(--weak-bg); }
+
+.inline-quiz-letter {
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.66rem;
+    font-weight: 700;
+    border-radius: 50%;
+    background: rgba(188, 168, 138, 0.16);
+    color: var(--text-secondary);
+}
+
+.inline-quiz-option.correct .inline-quiz-letter { background: var(--strong-hue); color: #fff; }
+.inline-quiz-option.wrong .inline-quiz-letter   { background: var(--weak-hue);   color: #fff; }
+
+.inline-quiz-result {
+    font-size: 0.76rem;
+    line-height: 1.55;
+    border-radius: var(--radius-md);
+    padding: 0.55rem 0.7rem;
+}
+
+.inline-quiz-result.correct { background: var(--strong-bg); color: #4e5a4a; border: 1px solid var(--strong-border); }
+.inline-quiz-result.wrong   { background: var(--weak-bg);   color: #7c4940; border: 1px solid var(--weak-border); }
+.inline-quiz-answer { margin-bottom: 0.3rem; }
+
+/* ── Inline flashcards ─────────────────────────────────────── */
+.inline-flashcards {
+    margin-top: 0.65rem;
+    border-top: 1px solid var(--border-faint);
+    padding-top: 0.65rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+}
+
+.inline-flashcard-wrap { display: flex; flex-direction: column; gap: 0.3rem; }
+
+.inline-flashcard {
+    width: 100%;
+    text-align: left;
+    font-family: var(--font-body);
+    font-size: 0.78rem;
+    line-height: 1.5;
+    color: var(--text-primary);
+    background: linear-gradient(135deg, rgba(188, 168, 138, 0.08), rgba(242, 239, 233, 0.6));
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-md);
+    padding: 0.6rem 0.75rem;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    transition: border-color var(--duration) var(--ease-out), transform 0.12s var(--ease-out);
+}
+
+.inline-flashcard:hover { border-color: var(--swatch-4); transform: translateY(-1px); }
+.inline-flashcard.flipped { background: var(--strong-bg); border-color: var(--strong-border); }
+
+.inline-flashcard-tag {
+    font-size: 0.6rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--text-muted);
+}
+
+.inline-flashcard-rate { display: flex; gap: 0.4rem; }
+
+.inline-flashcard-rate-btn {
+    font-family: var(--font-body);
+    font-size: 0.68rem;
+    font-weight: 600;
+    border-radius: 999px;
+    padding: 0.25rem 0.7rem;
+    cursor: pointer;
+    border: 1px solid var(--border-soft);
+    background: var(--bg-card);
+    color: var(--text-secondary);
+    transition: border-color var(--duration) var(--ease-out), background var(--duration) var(--ease-out);
+}
+
+.inline-flashcard-rate-btn.know:hover   { border-color: var(--strong-hue); background: var(--strong-bg); color: #4e5a4a; }
+.inline-flashcard-rate-btn.review:hover { border-color: var(--weak-hue);   background: var(--weak-bg);   color: #7c4940; }
