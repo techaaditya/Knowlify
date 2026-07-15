@@ -75,6 +75,9 @@ class ChatRequest(BaseModel):
     message: str
     history: list[ChatHistoryMessage] = []
     source_ids: list[str] = []
+    # When set (from the canvas tool palette), forces one visualization type so
+    # the model gets a focused, single-schema prompt instead of the all-types one.
+    canvas_type: Optional[str] = None
 
 
 class ChatAnswerRequest(BaseModel):
@@ -315,6 +318,9 @@ _FLAT_PAYLOAD_KEYS: dict[str, tuple[str, ...]] = {
     "timeline": ("events",),
     "chart": ("kind", "unit", "points"),
     "plot": ("functions", "xRange", "yRange", "points"),
+    "mindmap": ("root", "nodes"),
+    "infographic": ("theme", "title", "subtitle", "blocks"),
+    "video": ("duration", "background", "elements", "captions"),
 }
 
 
@@ -327,10 +333,16 @@ def _wrap_flat_scene(scene: dict) -> dict | None:
     payload = {k: scene[k] for k in keys if k in scene}
     if not payload:
         return None
-    # A chart/plot with no usable data isn't worth rendering.
+    # A payload with no usable data isn't worth rendering.
     if viz == "chart" and not payload.get("points"):
         return None
     if viz == "plot" and not payload.get("functions"):
+        return None
+    if viz == "mindmap" and not payload.get("nodes"):
+        return None
+    if viz == "infographic" and not payload.get("blocks"):
+        return None
+    if viz == "video" and not payload.get("elements"):
         return None
     return {
         "title": scene.get("title") or "Concept",
@@ -489,6 +501,7 @@ async def adaptive_chat(
             graph_context=graph_context,
             student_context=student_context,
             concept_name=concept_name,
+            canvas_type=payload.canvas_type,
         )
     except Exception as e:
         print(f"[chat] LLM error: {e}")
@@ -507,6 +520,31 @@ async def adaptive_chat(
     canvas_scene = None
     if payload.mode == "canvas":
         canvas_scene = _parse_canvas_scene(reply)
+        if not canvas_scene:
+            # One repair pass: the keyframe/step JSON is the most error-prone
+            # output, so show the model its own bad reply and ask for corrected
+            # JSON before giving up and apologising to the student.
+            try:
+                repair_history = history_dicts + [
+                    {"role": "user", "content": payload.message},
+                    {"role": "assistant", "content": reply},
+                ]
+                repaired = generate_chat_response(
+                    message=(
+                        "That was not a single valid JSON scene object. Return ONLY the "
+                        "corrected JSON object for the canvas — no prose, no code fences."
+                    ),
+                    history=repair_history,
+                    mode="canvas",
+                    source_context=source_context,
+                    graph_context=graph_context,
+                    student_context=student_context,
+                    concept_name=concept_name,
+                    canvas_type=payload.canvas_type,
+                )
+                canvas_scene = _parse_canvas_scene(repaired)
+            except Exception as e:
+                print(f"[chat] Canvas repair pass failed: {e}")
         if canvas_scene:
             step_count = len(canvas_scene.get("steps") or [])
             scene_title = canvas_scene.get("title") or concept_name or "this concept"

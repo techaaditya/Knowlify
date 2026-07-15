@@ -166,7 +166,7 @@ function toRPN(toks: Token[]): Token[] {
         break;
       case 'u':
       case 'op': {
-        const o1 = tok.t === 'u' ? tok.op : tok.op;
+        const o1 = tok.op;
         while (stack.length) {
           const top = stack[stack.length - 1];
           if (top.t === 'func') {
@@ -174,7 +174,7 @@ function toRPN(toks: Token[]): Token[] {
             continue;
           }
           if (top.t === 'op' || top.t === 'u') {
-            const o2 = top.t === 'u' ? top.op : top.op;
+            const o2 = top.op;
             const shift = RIGHT_ASSOC.has(o1) ? PREC[o2] > PREC[o1] : PREC[o2] >= PREC[o1];
             if (shift) {
               output.push(stack.pop()!);
