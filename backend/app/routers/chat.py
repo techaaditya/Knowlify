@@ -74,6 +74,7 @@ class ChatRequest(BaseModel):
     message: str
     history: list[ChatHistoryMessage] = []
     source_ids: list[str] = []
+    persist: bool = True
 
 
 class ChatAnswerRequest(BaseModel):
@@ -437,8 +438,9 @@ async def adaptive_chat(
         )
 
     # 8. Persist this turn to the user's per-workspace history.
-    _save_chat_message(db, current_user, payload.workspace_id, "user", payload.message, payload.concept_id, payload.mode)
-    _save_chat_message(db, current_user, payload.workspace_id, "assistant", reply, payload.concept_id, payload.mode)
+    if payload.persist:
+        _save_chat_message(db, current_user, payload.workspace_id, "user", payload.message, payload.concept_id, payload.mode)
+        _save_chat_message(db, current_user, payload.workspace_id, "assistant", reply, payload.concept_id, payload.mode)
 
     # 9. Build response
     mastery_info = _build_mastery_info(student_profile, payload.concept_id)

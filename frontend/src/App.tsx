@@ -10,17 +10,20 @@ import { StudyPage } from './pages/StudyPage';
 import { KnowledgeMapPage } from './pages/KnowledgeMapPage';
 import { SourcesPage } from './pages/SourcesPage';
 import { KnowledgeDashboardPage } from './pages/KnowledgeDashboardPage';
-import { QuizPage } from './pages/QuizPage';
-import { FlashcardsPage } from './pages/FlashcardsPage';
+import { GenerateMode, GeneratePage } from './pages/GeneratePage';
 import { WorkspaceHeader } from './components/Workspace/WorkspaceHeader';
+import { SecondaryAssistant } from './components/Assistant/SecondaryAssistant';
 
 type Tab = 'dashboard' | 'sources' | 'chat' | 'graph' | 'generate' | 'analytics';
-type GenerateMode = 'quiz' | 'flashcards';
-
 interface ChatActionPayload {
   conceptId?: string | null;
   mode?: string;
   message?: string;
+}
+export interface GenerateActionRequest {
+  id: number;
+  mode: GenerateMode;
+  conceptId?: string | null;
 }
 
 const NAV_ITEMS: { id: Tab; label: string }[] = [
@@ -32,49 +35,11 @@ const NAV_ITEMS: { id: Tab; label: string }[] = [
   { id: 'analytics', label: 'Analytics' },
 ];
 
-const GeneratePage: React.FC<{
-  initialMode: GenerateMode;
-  onChatAction: (conceptId?: string | null, mode?: string, message?: string) => void;
-}> = ({ initialMode, onChatAction }) => {
-  const [activeMode, setActiveMode] = useState<GenerateMode>(initialMode);
-
-  useEffect(() => {
-    setActiveMode(initialMode);
-  }, [initialMode]);
-
-  return (
-    <div className="space-y-6">
-      <div className="dashboard-header">
-        <div className="header-title">
-          <h2>Generate</h2>
-          <p>Create source-grounded quizzes and flashcards from the selected learning folder.</p>
-        </div>
-        <div className="flex gap-2">
-          <button
-            type="button"
-            className={`btn ${activeMode === 'quiz' ? 'btn-primary' : 'btn-secondary'}`}
-            onClick={() => setActiveMode('quiz')}
-          >
-            Quiz
-          </button>
-          <button
-            type="button"
-            className={`btn ${activeMode === 'flashcards' ? 'btn-primary' : 'btn-secondary'}`}
-            onClick={() => setActiveMode('flashcards')}
-          >
-            Flashcards
-          </button>
-        </div>
-      </div>
-      {activeMode === 'quiz' ? <QuizPage embedded onLearnMore={onChatAction} /> : <FlashcardsPage embedded />}
-    </div>
-  );
-};
-
 export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
   const [addSourcesTrigger, setAddSourcesTrigger] = useState(0);
   const [generateMode, setGenerateMode] = useState<GenerateMode>('quiz');
+  const [pendingGenerateRequest, setPendingGenerateRequest] = useState<GenerateActionRequest | null>(null);
 
   const studentData = useUserStore((state) => state.studentData);
   const fetchStudentData = useUserStore((state) => state.fetchStudentData);
@@ -126,12 +91,19 @@ export const App: React.FC = () => {
             initialMode={chatInitPayload?.mode}
             initialMessage={chatInitPayload?.message}
             onClearInitPayload={() => setChatInitPayload(null)}
+            onGenerateAction={handleGenerateAction}
           />
         );
       case 'graph':
         return <KnowledgeMapPage />;
       case 'generate':
-        return <GeneratePage initialMode={generateMode} onChatAction={handleChatAction} />;
+        return (
+          <GeneratePage
+            initialMode={generateMode}
+            pendingRequest={pendingGenerateRequest}
+            onConsumeRequest={() => setPendingGenerateRequest(null)}
+          />
+        );
       case 'analytics':
         return <DashboardPage onLearningAction={handleLearningAction} onChatAction={handleChatAction} />;
       default:
@@ -153,6 +125,13 @@ export const App: React.FC = () => {
       return;
     }
     setGenerateMode(tab);
+    setActiveTab('generate');
+  };
+
+  const handleGenerateAction = (mode: GenerateMode, conceptId?: string | null) => {
+    if (conceptId) setSelectedNodeId(conceptId);
+    setGenerateMode(mode);
+    setPendingGenerateRequest({ id: Date.now(), mode, conceptId: conceptId || null });
     setActiveTab('generate');
   };
 
@@ -259,6 +238,7 @@ export const App: React.FC = () => {
         />
         {renderContent()}
       </main>
+      <SecondaryAssistant />
     </div>
   );
 };

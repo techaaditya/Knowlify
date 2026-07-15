@@ -146,6 +146,22 @@ class GeneratedQuestion(Base):
 
 
 # ---------------------------------------------------------------------------
+# Generated Learning Artifacts (quiz decks, notes, study guides, flashcards)
+# ---------------------------------------------------------------------------
+class GeneratedArtifact(Base):
+    __tablename__ = "generated_artifacts"
+
+    id = Column(GUID(), primary_key=True, default=new_uuid)
+    user_id = Column(String(36), nullable=True, index=True)
+    workspace_id = Column(String(36), nullable=False, index=True)
+    concept_ref = Column(String(255), nullable=True, index=True)
+    artifact_type = Column(String(30), nullable=False, index=True)
+    title = Column(String(255), nullable=False)
+    content = Column(JSON, nullable=False, default=dict)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+# ---------------------------------------------------------------------------
 # Chat Messages (persistent history)
 # ---------------------------------------------------------------------------
 class ChatMessageModel(Base):

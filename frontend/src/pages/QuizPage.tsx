@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   answerGeneratedQuiz,
   generateWorkspaceQuiz,
@@ -11,10 +11,14 @@ import { useSourcesStore } from '../store/sourcesStore';
 import { useStudyStore } from '../store/studyStore';
 import { useUserStore } from '../store/userStore';
 import { useWorkspaceStore } from '../store/workspaceStore';
+import { useAssistantStore } from '../store/assistantStore';
 
 interface QuizPageProps {
   embedded?: boolean;
-  onLearnMore?: (conceptId?: string | null, mode?: string, message?: string) => void;
+  onGenerated?: () => void;
+  autoGenerateKey?: number;
+  autoConceptId?: string | null;
+  onAutoGenerateConsumed?: () => void;
 }
 
 interface QuizReviewItem {
@@ -28,7 +32,13 @@ interface QuizReviewItem {
   sourceName?: string | null;
 }
 
-export const QuizPage: React.FC<QuizPageProps> = ({ embedded = false, onLearnMore }) => {
+export const QuizPage: React.FC<QuizPageProps> = ({
+  embedded = false,
+  onGenerated,
+  autoGenerateKey,
+  autoConceptId,
+  onAutoGenerateConsumed,
+}) => {
   const graphData = useStudyStore((state) => state.graphData);
   const selectedNodeId = useStudyStore((state) => state.selectedNodeId);
   const setSelectedNodeId = useStudyStore((state) => state.setSelectedNodeId);
@@ -37,6 +47,8 @@ export const QuizPage: React.FC<QuizPageProps> = ({ embedded = false, onLearnMor
   const studentId = useUserStore((state) => state.studentId);
   const studentData = useUserStore((state) => state.studentData);
   const fetchStudentData = useUserStore((state) => state.fetchStudentData);
+  const requestAssistantHelp = useAssistantStore((state) => state.requestHelp);
+  const addAssistantMessage = useAssistantStore((state) => state.addMessage);
   const [topic, setTopic] = useState('');
   const [title, setTitle] = useState('');
   const [instructions, setInstructions] = useState('');
@@ -57,6 +69,7 @@ export const QuizPage: React.FC<QuizPageProps> = ({ embedded = false, onLearnMor
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const consumedAutoGenerateKey = useRef<number | null>(null);
 
   useEffect(() => {
     if (graphData?.nodes.length) setTopic(selectedNodeId || graphData.nodes[0].id);
@@ -84,12 +97,26 @@ export const QuizPage: React.FC<QuizPageProps> = ({ embedded = false, onLearnMor
       setHintsUsed(0);
       setVisibleHints([]);
       setStartedAt(Date.now());
+      onGenerated?.();
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Could not create a quiz for this concept.');
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (!autoGenerateKey || consumedAutoGenerateKey.current === autoGenerateKey) return;
+    if (!workspace?.id || !topic || loading) return;
+    if (autoConceptId && autoConceptId !== topic) {
+      setTopic(autoConceptId);
+      setSelectedNodeId(autoConceptId);
+      return;
+    }
+    consumedAutoGenerateKey.current = autoGenerateKey;
+    onAutoGenerateConsumed?.();
+    createQuiz();
+  }, [autoGenerateKey, autoConceptId, topic, workspace?.id, loading]);
 
   const submitAnswer = async () => {
     if (!workspace?.id || !question) return;
@@ -157,7 +184,13 @@ export const QuizPage: React.FC<QuizPageProps> = ({ embedded = false, onLearnMor
       `Please explain why the correct answer is correct, why my answer ${item.isCorrect ? 'works' : 'does not work'}, and what I should remember next time.${sourceLine}${evidenceLine}`,
     ].join('\n');
 
-    onLearnMore?.(item.question.concept_id, 'explain', prompt);
+    if (!workspace?.id) return;
+    requestAssistantHelp({
+      workspaceId: workspace.id,
+      conceptId: item.question.concept_id,
+      title: `Explain question ${item.questionNumber}`,
+      prompt,
+    });
   };
 
   const requestHint = async () => {
@@ -174,6 +207,13 @@ export const QuizPage: React.FC<QuizPageProps> = ({ embedded = false, onLearnMor
       });
       setVisibleHints((items) => [...items, data.hint]);
       setHintsUsed(data.hints_used);
+      addAssistantMessage({
+        workspaceId: workspace.id,
+        kind: 'hint',
+        title: data.hint.title,
+        content: `${data.hint.text}\n\nThis is hint ${nextLevel} of 3. Your quiz remains open behind this assistant.`,
+      });
+      useAssistantStore.getState().open();
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Could not load a hint for this question.');
     } finally {
@@ -288,16 +328,6 @@ export const QuizPage: React.FC<QuizPageProps> = ({ embedded = false, onLearnMor
               </div>
               {question.source_name && <span className="badge">Grounded in {question.source_name}</span>}
               <p className="font-semibold text-theme-text text-base">{question.prompt}</p>
-              {visibleHints.length > 0 && (
-                <div className="space-y-2">
-                  {visibleHints.map((hint) => (
-                    <div key={`${question.id}-${hint.level}`} className="recommendation-box">
-                      <span className="badge">{hint.title}</span>
-                      <p className="text-sm mt-2">{hint.text}</p>
-                    </div>
-                  ))}
-                </div>
-              )}
               {question.question_type === 'multiple_choice' ? (
                 <div className="space-y-2">
                   {question.options.map((option, optionIndex) => (

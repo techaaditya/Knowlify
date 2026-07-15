@@ -182,6 +182,18 @@ export interface GeneratedFlashcard {
   source_name?: string | null;
 }
 
+export type GeneratedArtifactType = 'quiz' | 'flashcards' | 'notes' | 'study_guide';
+
+export interface GeneratedArtifact {
+  id: string;
+  workspace_id: string;
+  concept_id?: string | null;
+  artifact_type: GeneratedArtifactType;
+  title: string;
+  content: Record<string, any>;
+  created_at?: string | null;
+}
+
 export const generateWorkspaceQuiz = async (
   workspaceId: string,
   conceptId: string,
@@ -258,6 +270,26 @@ export const reviewGeneratedFlashcard = async (payload: {
 export const getDueFlashcards = async (studentId: string, workspaceId?: string) => {
   const response = await client.get<{ student_id: string; due_reviews: unknown[] }>('/api/flashcards/due', {
     params: { student_id: studentId, workspace_id: workspaceId },
+  });
+  return response.data;
+};
+
+export const generateWrittenMaterial = async (
+  workspaceId: string,
+  conceptId: string,
+  materialType: 'notes' | 'study_guide',
+) => {
+  const response = await client.post<GeneratedArtifact>('/api/generate/material', {
+    workspace_id: workspaceId,
+    concept_id: conceptId,
+    material_type: materialType,
+  });
+  return response.data;
+};
+
+export const getGenerationHistory = async (workspaceId: string) => {
+  const response = await client.get<{ workspace_id: string; artifacts: GeneratedArtifact[] }>('/api/generate/history', {
+    params: { workspace_id: workspaceId },
   });
   return response.data;
 };

@@ -1,10 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { GeneratedFlashcard, getDueFlashcards, getGeneratedFlashcards, reviewGeneratedFlashcard } from '../api/client';
 import { SelectedSourcesBar } from '../components/Sources/SelectedSourcesBar';
 import { useSourcesStore } from '../store/sourcesStore';
 import { useStudyStore } from '../store/studyStore';
 import { useUserStore } from '../store/userStore';
 import { useWorkspaceStore } from '../store/workspaceStore';
+import { useAssistantStore } from '../store/assistantStore';
 
 const ratingMeta = {
   again: { label: 'Again', detail: 'Review today', color: 'var(--weak-hue)', bg: 'var(--weak-bg)', border: 'var(--weak-border)' },
@@ -20,9 +21,19 @@ const difficultyLabel = (difficulty?: string) => {
 
 interface FlashcardsPageProps {
   embedded?: boolean;
+  onGenerated?: () => void;
+  autoGenerateKey?: number;
+  autoConceptId?: string | null;
+  onAutoGenerateConsumed?: () => void;
 }
 
-export const FlashcardsPage: React.FC<FlashcardsPageProps> = ({ embedded = false }) => {
+export const FlashcardsPage: React.FC<FlashcardsPageProps> = ({
+  embedded = false,
+  onGenerated,
+  autoGenerateKey,
+  autoConceptId,
+  onAutoGenerateConsumed,
+}) => {
   const graphData = useStudyStore((state) => state.graphData);
   const selectedNodeId = useStudyStore((state) => state.selectedNodeId);
   const setSelectedNodeId = useStudyStore((state) => state.setSelectedNodeId);
@@ -31,6 +42,7 @@ export const FlashcardsPage: React.FC<FlashcardsPageProps> = ({ embedded = false
   const studentId = useUserStore((state) => state.studentId);
   const studentData = useUserStore((state) => state.studentData);
   const fetchStudentData = useUserStore((state) => state.fetchStudentData);
+  const requestAssistantHelp = useAssistantStore((state) => state.requestHelp);
   const [topic, setTopic] = useState('');
   const [cards, setCards] = useState<GeneratedFlashcard[]>([]);
   const [dueReviews, setDueReviews] = useState<any[]>([]);
@@ -39,6 +51,7 @@ export const FlashcardsPage: React.FC<FlashcardsPageProps> = ({ embedded = false
   const [loading, setLoading] = useState(false);
   const [rating, setRating] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const consumedAutoGenerateKey = useRef<number | null>(null);
 
   useEffect(() => {
     if (graphData?.nodes.length) setTopic(selectedNodeId || graphData.nodes[0].id);
@@ -66,11 +79,40 @@ export const FlashcardsPage: React.FC<FlashcardsPageProps> = ({ embedded = false
       setIndex(0);
       setFlipped(false);
       setRating(null);
+      onGenerated?.();
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Could not generate flashcards for this concept.');
     } finally {
       setLoading(false);
     }
+  };
+
+  useEffect(() => {
+    if (!autoGenerateKey || consumedAutoGenerateKey.current === autoGenerateKey) return;
+    if (!workspace?.id || !topic || loading) return;
+    if (autoConceptId && autoConceptId !== topic) {
+      setTopic(autoConceptId);
+      setSelectedNodeId(autoConceptId);
+      return;
+    }
+    consumedAutoGenerateKey.current = autoGenerateKey;
+    onAutoGenerateConsumed?.();
+    generateCards();
+  }, [autoGenerateKey, autoConceptId, topic, workspace?.id, loading]);
+
+  const explainCard = () => {
+    if (!workspace?.id || !card) return;
+    requestAssistantHelp({
+      workspaceId: workspace.id,
+      conceptId: topic,
+      title: 'Explain this flashcard',
+      prompt: [
+        `I am studying the flashcard concept ${concept?.display_name || topic}.`,
+        `Prompt: ${card.front}`,
+        `Answer: ${card.back}`,
+        'Explain the idea in simpler language, give one useful example, and tell me what I should remember for recall.',
+      ].join('\n'),
+    });
   };
 
   const rateCard = async (value: 'again' | 'hard' | 'good' | 'easy') => {
@@ -260,6 +302,7 @@ export const FlashcardsPage: React.FC<FlashcardsPageProps> = ({ embedded = false
                   <div className="flex flex-wrap gap-3">
                     <button type="button" className="btn btn-secondary" onClick={() => setFlipped((value) => !value)}>{flipped ? 'Show Prompt' : 'Reveal Answer'}</button>
                     <button type="button" className="btn btn-secondary" onClick={() => { setIndex((value) => (value + 1) % cards.length); setFlipped(false); }}>Skip</button>
+                    <button type="button" className="btn btn-secondary" onClick={explainCard}>Ask Learning Assistant</button>
                   </div>
                   <div className="rounded-lg border border-theme-border bg-theme-bg p-4">
                     <div className="flex items-start justify-between gap-3 mb-3">

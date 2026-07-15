@@ -46,3 +46,9 @@ class FlashcardReviewCreate(BaseModel):
     concept_id: str
     card_id: str
     rating: str = Field(pattern="^(again|hard|good|easy)$")
+
+
+class WrittenMaterialGenerateRequest(BaseModel):
+    workspace_id: str
+    concept_id: str
+    material_type: str = Field(pattern="^(notes|study_guide)$")
