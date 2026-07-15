@@ -57,7 +57,6 @@ interface CanvasSessionState {
   nodePositions: Record<string, NodePosition>;
   past: CanvasScene[];
   future: CanvasScene[];
-
   history: CanvasHistoryEntry[];
   sessionStartedAt: number;
 

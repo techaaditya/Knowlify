@@ -33,9 +33,22 @@ class GeneratedQuizAnswer(BaseModel):
     difficulty: str = Field(default="Medium", pattern="^(Easy|Medium|Hard|easy|medium|hard)$")
 
 
+class GeneratedQuizHintRequest(BaseModel):
+    workspace_id: str
+    question_id: str
+    hint_level: int = Field(default=1, ge=1, le=3)
+    student_answer: Optional[str] = None
+
+
 class FlashcardReviewCreate(BaseModel):
     student_id: str
     workspace_id: str
     concept_id: str
     card_id: str
     rating: str = Field(pattern="^(again|hard|good|easy)$")
+
+
+class WrittenMaterialGenerateRequest(BaseModel):
+    workspace_id: str
+    concept_id: str
+    material_type: str = Field(pattern="^(notes|study_guide)$")

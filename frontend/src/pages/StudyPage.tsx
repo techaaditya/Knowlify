@@ -10,9 +10,10 @@ interface StudyPageProps {
   initialMode?: string;
   initialMessage?: string;
   onClearInitPayload?: () => void;
+  onGenerateAction?: (mode: 'quiz' | 'flashcards' | 'notes' | 'study_guide', conceptId?: string | null) => void;
 }
 
-export const StudyPage: React.FC<StudyPageProps> = ({ initialMode, initialMessage, onClearInitPayload }) => {
+export const StudyPage: React.FC<StudyPageProps> = ({ initialMode, initialMessage, onClearInitPayload, onGenerateAction }) => {
   const selectedNodeData = useStudyStore((state) => state.selectedNodeData);
   const selectedNodeId = useStudyStore((state) => state.selectedNodeId);
   const selectedSources = useSourcesStore((s) => s.getSelectedSources());
@@ -83,6 +84,7 @@ export const StudyPage: React.FC<StudyPageProps> = ({ initialMode, initialMessag
               sourceIds={selectedSourceIds}
               initialMode={initialMode}
               initialMessage={initialMessage}
+              onGenerateAction={onGenerateAction}
             />
           </div>
         </div>
