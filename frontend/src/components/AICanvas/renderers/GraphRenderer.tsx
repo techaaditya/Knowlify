@@ -50,8 +50,8 @@ export const GraphRenderer: React.FC<Props> = ({ payload }) => {
       },
       width: e.highlight ? 2.5 : 1.5,
       smooth: isTree
-        ? { type: 'cubicBezier', forceDirection: 'vertical', roundness: 0.5 }
-        : { type: 'cubicBezier', forceDirection: 'horizontal', roundness: 0.45 },
+        ? { enabled: true, type: 'cubicBezier', forceDirection: 'vertical', roundness: 0.5 }
+        : { enabled: true, type: 'cubicBezier', forceDirection: 'horizontal', roundness: 0.45 },
     }));
 
     const network = new Network(

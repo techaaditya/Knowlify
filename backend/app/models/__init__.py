@@ -8,6 +8,7 @@ from .student_profile import (
     InteractionEvent,
     Flashcard,
     GeneratedQuestion,
+    GeneratedArtifact,
     ChatMessageModel,
 )
 
@@ -25,5 +26,6 @@ __all__ = [
     "InteractionEvent",
     "Flashcard",
     "GeneratedQuestion",
+    "GeneratedArtifact",
     "ChatMessageModel"
 ]

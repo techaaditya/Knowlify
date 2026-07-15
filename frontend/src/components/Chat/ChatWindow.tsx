@@ -50,6 +50,7 @@ interface Props {
   sourceIds?: string[];
   initialMode?: string;
   initialMessage?: string;
+  onGenerateAction?: (mode: 'quiz' | 'flashcards' | 'notes' | 'study_guide', conceptId?: string | null) => void;
 }
 
 // ─── Constants ─────────────────────────────────────────────────────────────
@@ -416,6 +417,7 @@ export const ChatWindow: React.FC<Props> = ({
   sourceIds = [],
   initialMode = 'explain',
   initialMessage,
+  onGenerateAction,
 }) => {
   const [mode, setMode] = useState<ModeId>(initialMode as ModeId);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -449,7 +451,7 @@ export const ChatWindow: React.FC<Props> = ({
     return {
       id: uid(),
       role: 'assistant',
-      content: `Hello! I'm your Knowlify Tutor. Let's study ${conceptLabel} together. You can choose a mode above (like Explain, Quiz, or Flashcards) to get started!`,
+      content: `Hello! I'm your Knowlify Tutor. Let's study ${conceptLabel} together. Ask for an explanation here, or ask me to create a quiz, flashcards, notes, or a study guide and I will open it in Generate.`,
     };
   };
 
@@ -519,21 +521,37 @@ export const ChatWindow: React.FC<Props> = ({
   }, [initialMessage, initialMode, activeConceptId]);
 
   const handleModeChange = (newMode: ModeId) => {
+    if (newMode === 'test' || newMode === 'flashcard') {
+      onGenerateAction?.(newMode === 'test' ? 'quiz' : 'flashcards', activeConceptId || null);
+      return;
+    }
     setMode(newMode);
     const modeInfo = MODES.find(m => m.id === newMode)!;
     
     // Automatically trigger action when switching mode
-    const msgText = newMode === 'test' 
-      ? `Start a quiz question about ${activeConceptName || 'workspace'}`
-      : newMode === 'flashcard'
-      ? `Generate flashcards for ${activeConceptName || 'workspace'}`
-      : `Provide me a ${modeInfo.label.toLowerCase()} overview`;
+    const msgText = `Provide me a ${modeInfo.label.toLowerCase()} overview`;
       
     sendMessage(msgText, newMode);
   };
 
   const sendMessage = async (text: string, activeMode: ModeId = mode) => {
     if (!text.trim() || loading) return;
+    const normalized = text.toLowerCase();
+    const asksToCreate = /\b(create|generate|make|start|take|build|prepare)\b/.test(normalized);
+    const requestedMaterial = /\bflashcards?\b/.test(normalized)
+      ? 'flashcards'
+      : /\bquiz(zes)?\b|\btest me\b/.test(normalized)
+        ? 'quiz'
+        : /\bstudy guide\b/.test(normalized)
+          ? 'study_guide'
+          : /\bnotes?\b/.test(normalized)
+            ? 'notes'
+            : null;
+    if (asksToCreate && requestedMaterial && onGenerateAction) {
+      setInput('');
+      onGenerateAction(requestedMaterial, activeConceptId || null);
+      return;
+    }
     setInput('');
 
     const userMsg: ChatMessage = { id: uid(), role: 'user', content: text };
@@ -652,6 +670,10 @@ export const ChatWindow: React.FC<Props> = ({
   const handleSuggestedAction = (action: SuggestedAction) => {
     if (action.target_concept) {
       setSelectedNodeId(action.target_concept);
+    }
+    if (action.mode === 'test' || action.mode === 'flashcard') {
+      onGenerateAction?.(action.mode === 'test' ? 'quiz' : 'flashcards', action.target_concept || activeConceptId || null);
+      return;
     }
     setMode(action.mode);
     sendMessage(action.message, action.mode);

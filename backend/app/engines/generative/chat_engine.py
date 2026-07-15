@@ -174,31 +174,30 @@ def generate_fallback_chat_response(
     """Deterministic response used when Ollama/LLM is unavailable."""
     concept_label = concept_name or "this topic"
     parts = [
-        "I could not reach the local tutoring model, so I am using Knowlify's source-based fallback.",
-        f"For **{concept_label}**, I will stay close to the uploaded source and your learning data.",
+        f"Let's work through **{concept_label}** using your uploaded material.",
     ]
 
     if source_context:
         first_source = source_context.split("\n\n")[0]
-        parts.append(f"Most relevant source evidence:\n{first_source[:900]}")
+        parts.append(f"The strongest clue I found in your source is:\n{first_source[:900]}")
     elif graph_context:
-        parts.append(f"Knowledge graph signal:\n{graph_context}")
+        parts.append(f"From your knowledge graph, this is the useful context:\n{graph_context}")
 
     if "misconception" in student_context.lower() or "error patterns" in student_context.lower():
         parts.append(
-            "Your Student Model shows repeated error patterns, so the next response should focus on the misconception before adding harder practice."
+            "I notice this idea has caused mistakes before, so let's slow down and fix the exact misunderstanding before adding harder practice."
         )
     elif student_context:
-        parts.append(f"Student/adaptive signal:\n{student_context[:650]}")
+        parts.append(f"Your learning signal says:\n{student_context[:650]}")
 
     if mode == "test":
-        parts.append(f"Practice prompt: explain {concept_label} in your own words, then compare your answer with the source evidence above.")
+        parts.append(f"Try this: explain {concept_label} in your own words, then compare your answer with the source clue above.")
     elif mode == "flashcard":
-        parts.append(f"Flashcard: What is the key idea of {concept_label}?\nAnswer: Use the source evidence above to state the definition and why it matters.")
+        parts.append(f"I made the recall cards below. Before flipping each one, say your answer out loud, then check what the source supports.")
     elif mode == "socratic":
-        parts.append(f"Guiding question: What part of the source evidence tells you why {concept_label} matters?")
+        parts.append(f"Let's start with one question: what part of the source clue tells you why {concept_label} matters?")
     else:
-        parts.append(f"Recommended next step: review the evidence, then ask for a quiz or flashcards on {concept_label}.")
+        parts.append(f"Next, tell me which part feels unclear, or ask me to turn this into a quiz or flashcards.")
 
     return "\n\n".join(parts)
 
@@ -326,7 +325,7 @@ def build_system_prompt(
     mode_instruction = MODE_INSTRUCTIONS.get(mode, MODE_INSTRUCTIONS["explain"])
     concept_label = concept_name or "the student's workspace topics"
 
-    prompt = f"""You are Knowlify Tutor, an expert adaptive learning assistant. You help students learn concepts from their uploaded knowledge sources.
+    prompt = f"""You are Knowlify Tutor, a warm, interactive learning coach. You help students learn concepts from their uploaded knowledge sources.
 
 ## Your Current Task
 {mode_instruction}
@@ -350,11 +349,14 @@ def build_system_prompt(
    - Below 30% mastery: Use very simple language, short sentences, basic analogies
    - 30-60% mastery: Use moderate complexity with some technical terms
    - Above 60% mastery: Use full technical language, go deeper
-4. If the student asks about something not covered in their sources, say so honestly.
-5. Be encouraging but honest. Celebrate progress.
-6. Keep responses focused and not too long (3-5 paragraphs max unless step-by-step).
-7. If there are misconceptions flagged, address them gently and naturally.
-8. If prerequisites are weak, offer to review them before advancing.
+4. Sound like a real tutor in conversation: direct, friendly, and specific. Avoid template phrases.
+5. Never mention internal failures, fallback systems, APIs, models, or default responses to the student.
+6. If the student asks about something not covered in their sources, say so honestly and offer a source-grounded next step.
+7. Be encouraging but honest. Celebrate progress without overdoing it.
+8. Keep responses focused and not too long (3-5 paragraphs max unless step-by-step).
+9. If there are misconceptions flagged, address them gently and naturally.
+10. If prerequisites are weak, offer to review them before advancing.
+11. End with one useful next move or one short check-in question, not a long menu.
 """
     return prompt
 
@@ -400,7 +402,7 @@ def generate_chat_response(
             response = client.chat.completions.create(
                 model=model_name,
                 messages=messages,
-                temperature=0.4,
+                temperature=0.55,
                 max_tokens=1500,
                 **extra_kwargs,
             )

@@ -31,10 +31,14 @@ interface CanvasSessionState {
   stepIndex: number;
   playing: boolean;
 
+  past: CanvasScene[];
+  future: CanvasScene[];
   history: CanvasHistoryEntry[];
   sessionStartedAt: number;
 
-  requestScene: (prompt: string, opts?: { conceptId?: string | null; conceptName?: string | null }) => Promise<void>;
+  requestScene: (prompt: string, opts?: { conceptId?: string | null; conceptName?: string | null; canvasType?: string | null }) => Promise<void>;
+  undo: () => void;
+  redo: () => void;
   nextStep: () => void;
   prevStep: () => void;
   goToStep: (i: number) => void;
@@ -65,6 +69,8 @@ export const useCanvasSessionStore = create<CanvasSessionState>((set, get) => ({
   stepIndex: 0,
   playing: false,
 
+  past: [],
+  future: [],
   history: [],
   sessionStartedAt: Date.now(),
 
@@ -81,6 +87,7 @@ export const useCanvasSessionStore = create<CanvasSessionState>((set, get) => ({
       const res = await client.post<RawCanvasReply>('/api/chat', {
         workspace_id: workspaceId,
         concept_id: opts?.conceptId ?? null,
+        canvas_type: opts?.canvasType ?? undefined,
         student_id: studentId,
         mode: 'canvas',
         message: prompt,
@@ -102,6 +109,8 @@ export const useCanvasSessionStore = create<CanvasSessionState>((set, get) => ({
           createdAt: Date.now(),
         };
         set((s) => ({
+          past: s.scene ? [...s.past, s.scene] : s.past,
+          future: [],
           scene: canvas_scene,
           stepIndex: 0,
           loading: false,
@@ -119,6 +128,32 @@ export const useCanvasSessionStore = create<CanvasSessionState>((set, get) => ({
         'Could not reach the tutor to build this canvas. Please try again.';
       set({ error: detail, loading: false });
     }
+  },
+
+  undo: () => {
+    const { past, scene, future } = get();
+    if (!past.length) return;
+    const previous = past[past.length - 1];
+    set({
+      past: past.slice(0, -1),
+      future: scene ? [scene, ...future] : future,
+      scene: previous,
+      stepIndex: 0,
+      playing: false,
+    });
+  },
+
+  redo: () => {
+    const { past, scene, future } = get();
+    if (!future.length) return;
+    const next = future[0];
+    set({
+      past: scene ? [...past, scene] : past,
+      future: future.slice(1),
+      scene: next,
+      stepIndex: 0,
+      playing: false,
+    });
   },
 
   nextStep: () => {
@@ -173,6 +208,8 @@ export const useCanvasSessionStore = create<CanvasSessionState>((set, get) => ({
       playing: false,
       fallbackText: null,
       error: null,
+      past: [],
+      future: [],
       history: [],
       sessionStartedAt: Date.now(),
     });

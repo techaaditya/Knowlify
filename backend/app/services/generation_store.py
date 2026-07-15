@@ -7,7 +7,47 @@ each generation per user + workspace so it survives restarts and stays isolated.
 """
 from sqlalchemy.orm import Session
 
-from ..models.student_profile import Flashcard, GeneratedQuestion
+from ..models.student_profile import Flashcard, GeneratedArtifact, GeneratedQuestion
+
+
+def persist_artifact(
+    db: Session,
+    *,
+    artifact_type: str,
+    title: str,
+    content: dict,
+    user_id: str | None,
+    workspace_id: str,
+    concept_ref: str | None,
+) -> GeneratedArtifact:
+    """Save one complete generated learning activity for the History view."""
+    artifact = GeneratedArtifact(
+        user_id=user_id,
+        workspace_id=workspace_id,
+        concept_ref=concept_ref,
+        artifact_type=artifact_type,
+        title=title,
+        content=content,
+    )
+    db.add(artifact)
+    db.commit()
+    db.refresh(artifact)
+    return artifact
+
+
+def list_artifacts(
+    db: Session,
+    *,
+    workspace_id: str,
+    user_id: str | None,
+    limit: int = 50,
+) -> list[GeneratedArtifact]:
+    query = db.query(GeneratedArtifact).filter(GeneratedArtifact.workspace_id == workspace_id)
+    if user_id:
+        query = query.filter(GeneratedArtifact.user_id == user_id)
+    else:
+        query = query.filter(GeneratedArtifact.user_id.is_(None))
+    return query.order_by(GeneratedArtifact.created_at.desc()).limit(limit).all()
 
 
 def persist_question(
